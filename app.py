@@ -36,20 +36,31 @@ try:
     st.markdown("---")
     st.subheader("🎤 ご希望のマイク本数を指定してください")
     
-    col1, col2, col3 = st.columns(3)
+    # 「パビリオン」が選ばれているときだけ有線マイク入力を表示
+    is_pavilion = ("パビリオン" in selected_venue)
     
-    with col1:
-        req_wired = st.number_input("有線マイク (本)", min_value=0, max_value=10, value=1, key="wired")
-    with col2:
-        req_wireless = st.number_input("ワイヤレスマイク (本)", min_value=0, max_value=10, value=2, key="wireless")
-    with col3:
-        req_pin = st.number_input("ピンマイク (本)", min_value=0, max_value=10, value=0, key="pin")
+    if is_pavilion:
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            req_wired = st.number_input("有線マイク (本)", min_value=1, max_value=10, value=1, key="wired")
+        with col2:
+            req_wireless = st.number_input("ワイヤレスマイク (本)", min_value=0, max_value=10, value=2, key="wireless")
+        with col3:
+            req_pin = st.number_input("ピンマイク (本)", min_value=0, max_value=10, value=0, key="pin")
+    else:
+        req_wired = None
+        col1, col2 = st.columns(2)
+        with col1:
+            req_wireless = st.number_input("ワイヤレスマイク (本)", min_value=0, max_value=10, value=2, key="wireless")
+        with col2:
+            req_pin = st.number_input("ピンマイク (本)", min_value=0, max_value=10, value=0, key="pin")
         
     st.markdown("---")
     
-    # 列名の特定（ワイ合計・ピン合計）
+    # 列名の特定（ワイ合計・ピン合計・有線合計）
     wireless_col = [c for c in df.columns if 'ワイ合計' in str(c)]
     pin_col = [c for c in df.columns if 'ピン合計' in str(c)]
+    wired_col = [c for c in df.columns if '有線合計' in str(c)]
     
     # 検索条件の作成
     cond = pd.Series([True] * len(df))
@@ -57,6 +68,10 @@ try:
         cond = cond & (df[wireless_col[0]].apply(safe_int) == req_wireless)
     if pin_col:
         cond = cond & (df[pin_col[0]].apply(safe_int) == req_pin)
+        
+    # パビリオンの場合のみ「有線マイク合計数」で絞り込み
+    if is_pavilion and wired_col and req_wired is not None:
+        cond = cond & (df[wired_col[0]].apply(safe_int) == req_wired)
         
     matched = df[cond]
     
