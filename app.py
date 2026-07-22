@@ -14,25 +14,15 @@ def load_data():
     data_dict = {}
     for sheet in xls.sheet_names:
         df = pd.read_excel(excel_file, sheet_name=sheet)
-        # NaN（空欄）を0に置き換え
         df = df.fillna(0)
         data_dict[sheet] = df
     return data_dict
 
-# 安全に整数に変換するヘルパー関数
 def safe_int(val):
     try:
         return int(float(val))
     except (ValueError, TypeError):
         return 0
-
-# 安全にカンマ区切りの金額文字列を作るヘルパー関数
-def format_price(val):
-    try:
-        num = float(val)
-        return f"{int(num):,} 円"
-    except (ValueError, TypeError):
-        return str(val)
 
 try:
     data = load_data()
@@ -57,7 +47,7 @@ try:
         
     st.markdown("---")
     
-    # 列名の特定
+    # 列名の特定（ワイ合計・ピン合計）
     wireless_col = [c for c in df.columns if 'ワイ合計' in str(c)]
     pin_col = [c for c in df.columns if 'ピン合計' in str(c)]
     
@@ -73,9 +63,7 @@ try:
     st.subheader("💰 見積・内訳結果")
     
     if not matched.empty:
-        # 適合する最初のプランを取得
         row = matched.iloc[0]
-        
         total_price = safe_int(row['合計']) if '合計' in row else 0
         
         st.success(f"### **概算合計金額: {total_price:,} 円**")
@@ -85,36 +73,42 @@ try:
             
         st.write("#### 📋 料金内訳明細")
         
-        # 明細テーブルの作成
         detail_data = []
-        for col in df.columns:
-            # 重複する列名（例: 追加ワイヤレスマイク.1 など）の表示をきれいに整形
-            clean_col_name = str(col).split('.')[0]
+        
+        # 基本料金の列インデックスを取得
+        cols_list = list(df.columns)
+        base_price_idx = -1
+        for idx, c in enumerate(cols_list):
+            if '基本料金' in str(c):
+                base_price_idx = idx
+                break
+                
+        for idx, col in enumerate(cols_list):
+            raw_col_name = str(col)
+            clean_col_name = raw_col_name.split('.')[0]
             val = row[col]
             
-            # 0や空文字以外を表示
-            if val != 0 and str(val).strip() != '0' and str(val).strip() != '':
-                if clean_col_name in ['ワイ合計', 'ピン合計', '有線合計']:
-                    continue
+            # 除外項目
+            if clean_col_name in ['ワイ合計', 'ピン合計', '有線合計', '合計', '連絡']:
+                continue
                 
-                # 数値の場合と文字列の場合で安全に表示を分ける
-                num_val = safe_int(val)
-                if num_val > 0:
-                    if any(k in clean_col_name for k in ['料金', 'ミキサー', 'オペレーター', '追加', '仮設', '合計']):
-                        if clean_col_name != '合計':
-                            detail_data.append({"項目名": clean_col_name, "内容 / 金額": f"{num_val:,} 円"})
-                    else:
-                        detail_data.append({"項目名": clean_col_name, "内容 / 金額": f"{num_val} 本"})
-                elif isinstance(val, str) and val.strip() not in ['0', '〇', '○']:
-                    detail_data.append({"項目名": clean_col_name, "内容 / 金額": val})
-                    
+            num_val = safe_int(val)
+            
+            if num_val > 0:
+                # 「基本料金」以降の列はすべて料金（円）、それより前は数量（本）
+                if base_price_idx != -1 and idx >= base_price_idx:
+                    detail_data.append({"項目名": clean_col_name, "内容 / 金額": f"{num_val:,} 円"})
+                else:
+                    detail_data.append({"項目名": clean_col_name, "内容 / 金額": f"{num_val} 本"})
+            elif isinstance(val, str) and val.strip() not in ['0', '〇', '○']:
+                detail_data.append({"項目名": clean_col_name, "内容 / 金額": val})
+                
         if detail_data:
             st.table(pd.DataFrame(detail_data))
             
     else:
         st.error("指定されたマイク本数の組み合わせに該当するプランが見つかりませんでした。本数を調整してください。")
         
-    # 参考：全パターン料金表の表示
     with st.expander("📄 この会場の全パターン料金表を確認する"):
         st.dataframe(df)
 
