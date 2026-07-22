@@ -35,6 +35,7 @@ try:
     
     st.markdown("---")
     st.subheader("🎤 ご希望のマイク本数を指定してください")
+    st.caption("※基本料金に含まれるマイク本数も含めた「全体の必要本数」をご指定ください。")
     
     is_pavilion = ("パビリオン" in selected_venue)
     
@@ -76,9 +77,16 @@ try:
     
     if not matched.empty:
         row = matched.iloc[0]
-        total_price = safe_int(row['合計']) if '合計' in row else 0
+        raw_total_price = safe_int(row['合計']) if '合計' in row else 0
         
-        st.success(f"### **概算合計金額: {total_price:,} 円**")
+        # オペレーター料金の取得（合計から引いて参考価格扱いにするため）
+        op_col = next((c for c in df.columns if 'オペレーター' in str(c)), None)
+        op_price = safe_int(row[op_col]) if op_col else 0
+        
+        # オペレーター金額を除外した概算合計額
+        calc_total_price = raw_total_price - op_price
+        
+        st.success(f"### **概算合計金額: {calc_total_price:,} 円** (※オペレーター料金除く)")
         
         if '連絡' in row and str(row['連絡']).strip() in ['〇', '○', '1']:
             st.warning("⚠️ この構成は音響オペレーターまたは追加機器の調整が必要です（連絡要）。")
@@ -95,7 +103,6 @@ try:
             # 1. 基本料金
             base_price = safe_int(row[cols[base_price_idx]])
             if base_price > 0:
-                # 基本マイクの本数を内訳コメント用に取得
                 base_info = []
                 for idx in range(0, base_price_idx):
                     c_name = str(cols[idx]).split('.')[0]
@@ -121,11 +128,9 @@ try:
                     
                 subtotal = safe_int(row[col_name])
                 if subtotal > 0:
-                    # 対応する数量列を探す
                     qty = 1
                     unit_str = "式"
                     
-                    # 機材・オペレーター以外の追加/仮設マイクの数量判定
                     matching_qty_cols = [c for c in cols[:base_price_idx] if str(c).split('.')[0] == clean_name]
                     if matching_qty_cols:
                         qty = safe_int(row[matching_qty_cols[0]])
@@ -135,12 +140,22 @@ try:
                     
                     if qty > 0:
                         unit_price = subtotal // qty
-                        detail_table.append({
-                            "項目名": clean_name,
-                            "数量": f"{qty} {unit_str}",
-                            "単価": f"{unit_price:,} 円",
-                            "小計": f"{subtotal:,} 円"
-                        })
+                        
+                        # オペレーターの場合は参考価格として注記
+                        if 'オペレーター' in clean_name:
+                            detail_table.append({
+                                "項目名": f"{clean_name}（※要確認）",
+                                "数量": f"{qty} {unit_str}",
+                                "単価": f"{unit_price:,} 円",
+                                "小計": f"{subtotal:,} 円 (参考価格/要確認)"
+                            })
+                        else:
+                            detail_table.append({
+                                "項目名": clean_name,
+                                "数量": f"{qty} {unit_str}",
+                                "単価": f"{unit_price:,} 円",
+                                "小計": f"{subtotal:,} 円"
+                            })
                         
         if detail_table:
             st.table(pd.DataFrame(detail_table))
