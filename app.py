@@ -273,13 +273,13 @@ try:
         op_ext_price = extension_hours * op_ext_unit_price if op_price > 0 else 0
         
         calc_total_price = (raw_total_price - op_price) + base_ext_price
+        # 消費税（10%）の計算
+        calc_tax_included_price = math.floor(calc_total_price * 1.10)
         
         col_res1, col_res2 = st.columns([3, 1])
         with col_res1:
-            if op_price > 0:
-                st.success(f"### **概算合計金額: {calc_total_price:,} 円** (※オペレーター料金除く)")
-            else:
-                st.success(f"### **概算合計金額: {calc_total_price:,} 円**")
+            op_note_str = " (※オペレーター料金除く)" if op_price > 0 else ""
+            st.success(f"### **概算合計金額: {calc_total_price:,} 円 (税込: {calc_tax_included_price:,} 円)**{op_note_str}")
         with col_res2:
             if st.button("💾 この見積を履歴に保存", use_container_width=True):
                 record = {
@@ -293,7 +293,8 @@ try:
                     "有線マイク本数": req_wired,
                     "ワイヤレスマイク本数": req_wireless,
                     "ピンマイク本数": req_pin,
-                    "概算合計金額": calc_total_price
+                    "概算合計金額": calc_total_price,
+                    "概算合計金額(税込)": calc_tax_included_price
                 }
                 save_history(record)
                 st.toast("✅ 見積履歴に保存しました！", icon="🎉")
@@ -439,7 +440,7 @@ try:
                     h3 {{ font-size: 15px; margin-top: 15px; margin-bottom: 8px; border-left: 4px solid #007bff; padding-left: 8px; }}
                     .summary {{ background: #f8f9fa; border: 1px solid #ddd; padding: 10px 12px; border-radius: 5px; margin-bottom: 12px; page-break-inside: avoid; }}
                     .summary p {{ margin: 3px 0; font-size: 12px; }}
-                    .price-box {{ font-size: 16px; font-weight: bold; color: #1a5276; margin: 10px 0; padding: 8px 12px; background: #eaf2f8; border-radius: 5px; page-break-inside: avoid; }}
+                    .price-box {{ font-size: 15px; font-weight: bold; color: #1a5276; margin: 10px 0; padding: 10px 12px; background: #eaf2f8; border-radius: 5px; page-break-inside: avoid; line-height: 1.4; }}
                     
                     /* テーブルのレイアウト最適化 & 改ページ防止 */
                     table.print-table {{ width: 100%; border-collapse: collapse; margin-top: 8px; table-layout: auto; page-break-inside: auto; }}
@@ -472,7 +473,8 @@ try:
                         <p><strong>ご利用時間:</strong> {start_time_str} 〜 {end_time_str} （{use_hours:.1f}時間）</p>
                     </div>
                     <div class="price-box">
-                        概算合計金額: {calc_total_price:,} 円 {"(※オペレーター料金除く)" if op_price > 0 else ""}
+                        概算合計金額（税抜）: {calc_total_price:,} 円<br>
+                        <strong>概算合計金額（税込 10%）: {calc_tax_included_price:,} 円</strong> {"(※オペレーター料金除く)" if op_price > 0 else ""}
                     </div>
                     <h3>📋 料金内訳明細</h3>
                     {table_html}
