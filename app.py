@@ -33,27 +33,54 @@ try:
     
     df = data[selected_venue]
     
+    # 選択した会場の基本マイク本数（基本プランの1行目）をデフォルト値として取得
+    first_row = df.iloc[0]
+    
+    def get_base_qty(col_keyword):
+        col = next((c for c in df.columns if col_keyword in str(c)), None)
+        return safe_int(first_row[col]) if col else 0
+
+    default_wired = get_base_qty("基本有線")
+    default_wireless = get_base_qty("基本ワイヤレス")
+    default_pin = get_base_qty("基本ピン")
+    
     st.markdown("---")
     st.subheader("🎤 ご希望のマイク本数を指定してください")
     st.caption("※基本料金に含まれるマイク本数も含めた「全体の必要本数」をご指定ください。")
     
     is_pavilion = ("パビリオン" in selected_venue)
     
+    # 会場が変更された際に初期値を更新するためのキー管理
     if is_pavilion:
         col1, col2, col3 = st.columns(3)
         with col1:
-            req_wired = st.number_input("有線マイク (本)", min_value=1, max_value=10, value=1, key="wired")
+            req_wired = st.number_input(
+                "有線マイク (本)", min_value=1, max_value=10, 
+                value=max(1, default_wired), key=f"wired_{selected_venue}"
+            )
         with col2:
-            req_wireless = st.number_input("ワイヤレスマイク (本)", min_value=0, max_value=10, value=2, key="wireless")
+            req_wireless = st.number_input(
+                "ワイヤレスマイク (本)", min_value=0, max_value=10, 
+                value=default_wireless, key=f"wireless_{selected_venue}"
+            )
         with col3:
-            req_pin = st.number_input("ピンマイク (本)", min_value=0, max_value=10, value=0, key="pin")
+            req_pin = st.number_input(
+                "ピンマイク (本)", min_value=0, max_value=10, 
+                value=default_pin, key=f"pin_{selected_venue}"
+            )
     else:
         req_wired = None
         col1, col2 = st.columns(2)
         with col1:
-            req_wireless = st.number_input("ワイヤレスマイク (本)", min_value=0, max_value=10, value=2, key="wireless")
+            req_wireless = st.number_input(
+                "ワイヤレスマイク (本)", min_value=0, max_value=10, 
+                value=default_wireless, key=f"wireless_{selected_venue}"
+            )
         with col2:
-            req_pin = st.number_input("ピンマイク (本)", min_value=0, max_value=10, value=0, key="pin")
+            req_pin = st.number_input(
+                "ピンマイク (本)", min_value=0, max_value=10, 
+                value=default_pin, key=f"pin_{selected_venue}"
+            )
         
     st.markdown("---")
     
