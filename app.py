@@ -107,19 +107,23 @@ try:
         
     st.markdown("---")
     
-    # 列名の特定
-    wireless_col = [c for c in df.columns if 'ワイ合計' in str(c)]
-    pin_col = [c for c in df.columns if 'ピン合計' in str(c)]
-    wired_col = [c for c in df.columns if '有線合計' in str(c) or '基本有線' in str(c)]
+    # 列名の特定（『合計』列を優先して検索）
+    wireless_col = next((c for c in df.columns if 'ワイ合計' in str(c)), None)
+    pin_col = next((c for c in df.columns if 'ピン合計' in str(c)), None)
+    wired_col = next((c for c in df.columns if '有線合計' in str(c)), None)
+    
+    # 有線合計列がない場合のみ基本有線列で代替
+    if not wired_col:
+        wired_col = next((c for c in df.columns if '基本有線' in str(c)), None)
     
     # 検索条件の作成
     cond = pd.Series([True] * len(df))
     if wireless_col:
-        cond = cond & (df[wireless_col[0]].apply(safe_int) == req_wireless)
+        cond = cond & (df[wireless_col].apply(safe_int) == req_wireless)
     if pin_col:
-        cond = cond & (df[pin_col[0]].apply(safe_int) == req_pin)
+        cond = cond & (df[pin_col].apply(safe_int) == req_pin)
     if wired_col:
-        cond = cond & (df[wired_col[0]].apply(safe_int) == req_wired)
+        cond = cond & (df[wired_col].apply(safe_int) == req_wired)
         
     matched = df[cond]
     
