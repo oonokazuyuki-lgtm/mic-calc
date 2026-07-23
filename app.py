@@ -180,9 +180,10 @@ try:
                     if '基本' in c_name and c_qty > 0:
                         base_info.append(f"{c_name}:{c_qty}本")
                 
-                info_str = f" ({', '.join(base_info)}込 / 6時間)" if base_info else " (6時間)"
+                info_str = f"{', '.join(base_info)}込" if base_info else ""
                 detail_table.append({
-                    "項目名": f"基本料金{info_str}",
+                    "項目名": "基本料金",
+                    "備考": f"6時間まで ({info_str})" if info_str else "6時間まで",
                     "数量": "1 式",
                     "単価": f"{base_price:,} 円",
                     "小計": f"{base_price:,} 円"
@@ -191,7 +192,8 @@ try:
             # 基本料金の延長料金表示（繰り上げ後の時間数）
             if extension_hours > 0:
                 detail_table.append({
-                    "項目名": f"会場基本料金 延長（繰り上げ算定: {extension_hours}時間分）",
+                    "項目名": "会場基本料金 延長",
+                    "備考": f"6時間超え分 (繰り上げ算定: {extension_hours}時間)",
                     "数量": f"{extension_hours} 時間",
                     "単価": f"{base_ext_unit_price:,} 円",
                     "小計": f"{base_ext_price:,} 円"
@@ -228,23 +230,26 @@ try:
                     # オペレーターの場合は参考価格として表示
                     if 'オペレーター' in clean_name:
                         detail_table.append({
-                            "項目名": f"{clean_name}（※要確認）",
+                            "項目名": clean_name,
+                            "備考": "6時間まで (※参考価格/要確認)",
                             "数量": f"{qty} {unit_str}",
                             "単価": f"{unit_price:,} 円",
-                            "小計": f"{subtotal:,} 円 (参考価格/要確認)"
+                            "小計": f"{subtotal:,} 円"
                         })
                         
                         # オペレーターの延長料金（発生時のみ参考表示）
                         if extension_hours > 0:
                             detail_table.append({
-                                "項目名": f"オペレーター 延長（繰り上げ算定: {extension_hours}時間分 / ※要確認）",
+                                "項目名": "オペレーター 延長",
+                                "備考": f"6時間超え分 (繰り上げ算定: {extension_hours}時間 / ※参考価格/要確認)",
                                 "数量": f"{extension_hours} 時間",
                                 "単価": f"{op_ext_unit_price:,} 円",
-                                "小計": f"{op_ext_price:,} 円 (参考価格/要確認)"
+                                "小計": f"{op_ext_price:,} 円"
                             })
                     else:
                         detail_table.append({
                             "項目名": clean_name,
+                            "備考": "-",
                             "数量": f"{qty} {unit_str}",
                             "単価": f"{unit_price:,} 円",
                             "小計": f"{subtotal:,} 円"
