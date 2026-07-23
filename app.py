@@ -420,7 +420,7 @@ try:
 
         # 📄 印刷・PDF保存プレビューエリア
         with st.expander("🖨️ 印刷 / PDF保存用のプレビューを表示", expanded=False):
-            st.caption("※用途に合わせて下の「印刷画面を開く」または「PDFファイルを直接保存」ボタンを押してください。")
+            st.caption("※用途に合わせて以下のボタンを使い分けてください。")
             df_detail = pd.DataFrame(detail_table)
             table_html = df_detail.to_html(index=False, classes='print-table')
 
@@ -448,9 +448,9 @@ try:
                     
                     /* ボタンエリア */
                     .action-container {{ margin-top: 20px; display: flex; gap: 15px; align-items: flex-start; }}
-                    .btn-print {{ padding: 8px 16px; font-size: 13px; font-weight: bold; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }}
-                    .btn-pdf {{ padding: 8px 16px; font-size: 13px; font-weight: bold; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 5px; }}
-                    .btn-note {{ font-size: 11px; color: #666; margin-top: 4px; }}
+                    .btn-print {{ padding: 10px 18px; font-size: 13px; font-weight: bold; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }}
+                    .btn-pdf {{ padding: 10px 18px; font-size: 13px; font-weight: bold; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 5px; }}
+                    .btn-note {{ font-size: 11px; color: #555; margin-top: 6px; line-height: 1.3; }}
                     
                     @media print {{
                         .no-print {{ display: none !important; }}
@@ -480,15 +480,20 @@ try:
                 <div class="action-container no-print">
                     <div>
                         <button class="btn-print" onclick="window.print()">
-                            🖨️ 印刷画面を開く
+                            🖨️ 印刷画面を開く（名前・場所を指定して保存）
                         </button>
-                        <div class="btn-note">※「PDFとして保存」を選べば場所と名前を指定できます</div>
+                        <div class="btn-note">
+                            ・「PDFとして保存」を選択すると<strong>『名前を付けて保存』画面</strong>が開きます。<br>
+                            ・名前や保存場所を自由に手動変更できます。
+                        </div>
                     </div>
                     <div>
                         <button class="btn-pdf" onclick="downloadPDF()">
-                            💾 PDFファイルを直接保存
+                            💾 設定されたファイル名で直接保存
                         </button>
-                        <div class="btn-note">※自動で『見積書_宴席名_日付.pdf』としてダウンロード</div>
+                        <div class="btn-note">
+                            ・『見積書_{display_banquet_name}_{formatted_date}.pdf』でダウンロードします。
+                        </div>
                     </div>
                 </div>
 
