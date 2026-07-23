@@ -157,7 +157,7 @@ try:
         op_col = next((c for c in df.columns if 'オペレーター' in str(c)), None)
         op_price = safe_int(row[op_col]) if op_col else 0
         
-        # 基本料金の延長単価判定（シャングリ・ラボールルーム: 15,000円 / その他: 3,000円）
+        # ボールルーム判定および延長単価の設定
         is_ballroom = ("ボールルーム" in selected_venue)
         base_ext_unit_price = 15000 if is_ballroom else 3000
         base_ext_price = extension_hours * base_ext_unit_price
@@ -198,6 +198,10 @@ try:
         
         # 基本料金列の位置を取得
         base_price_idx = next((i for i, c in enumerate(cols) if '基本料金' in str(c)), -1)
+        
+        # ボールルームでワイヤレス＋ピンマイクの合計が5本以上かの判定
+        total_wireless_req = req_wireless + req_pin
+        is_ballroom_5mics = is_ballroom and (total_wireless_req >= 5)
         
         if base_price_idx != -1:
             # 1. 基本料金
@@ -257,6 +261,11 @@ try:
                     
                     unit_price = subtotal // qty if qty > 0 else subtotal
                     
+                    # 備考メッセージの生成（ボールルーム＆5本以上の場合に注記）
+                    note = "-"
+                    if is_ballroom_5mics and ('ワイヤレス' in clean_name or 'ピン' in clean_name or '仮設' in clean_name):
+                        note = "※ワイヤレス（ハンド・ピン）5本以上使用のため追加ではなく仮設運用"
+                    
                     # オペレーターの場合は参考価格として表示
                     if 'オペレーター' in clean_name:
                         detail_table.append({
@@ -279,7 +288,7 @@ try:
                     else:
                         detail_table.append({
                             "項目名": clean_name,
-                            "備考": "-",
+                            "備考": note,
                             "数量": f"{qty} {unit_str}",
                             "単価": f"{unit_price:,} 円",
                             "小計": f"{subtotal:,} 円"
