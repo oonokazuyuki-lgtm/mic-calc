@@ -278,7 +278,7 @@ try:
                             note = "ピンマイクが入った時、マイクの本数が多い時必要となる"
                     elif is_ballroom:
                         if '追加' in clean_name:
-                            note = "ワイヤレス（ハンド・ピン）使用4本以下の為"
+                            note = "ワイヤレス（ハンド・ピン）4本以下使用の為"
                         elif '仮設' in clean_name:
                             note = "ワイヤレス（ハンド・ピン）5本以上使用の為"
                     
