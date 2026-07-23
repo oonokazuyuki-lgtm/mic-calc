@@ -420,7 +420,7 @@ try:
 
         # 📄 印刷・PDF保存プレビューエリア
         with st.expander("🖨️ 印刷 / PDF保存用のプレビューを表示", expanded=False):
-            st.caption("※用途に合わせて以下のボタンを使い分けてください。")
+            st.caption("※用途に合わせて以下のボタンを使用してください。")
             df_detail = pd.DataFrame(detail_table)
             table_html = df_detail.to_html(index=False, classes='print-table')
 
@@ -448,8 +448,8 @@ try:
                     
                     /* ボタンエリア */
                     .action-container {{ margin-top: 20px; display: flex; gap: 15px; align-items: flex-start; }}
-                    .btn-print {{ padding: 10px 18px; font-size: 13px; font-weight: bold; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }}
-                    .btn-pdf {{ padding: 10px 18px; font-size: 13px; font-weight: bold; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 5px; }}
+                    .btn-pdf {{ padding: 10px 20px; font-size: 14px; font-weight: bold; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 5px; }}
+                    .btn-print {{ padding: 10px 20px; font-size: 14px; font-weight: bold; cursor: pointer; background: #6c757d; color: white; border: none; border-radius: 5px; }}
                     .btn-note {{ font-size: 11px; color: #555; margin-top: 6px; line-height: 1.3; }}
                     
                     @media print {{
@@ -479,41 +479,66 @@ try:
                 
                 <div class="action-container no-print">
                     <div>
-                        <button class="btn-print" onclick="window.print()">
-                            🖨️ 印刷画面を開く（名前・場所を指定して保存）
+                        <button class="btn-pdf" onclick="downloadPDFWithDialog()">
+                            💾 名前と保存先を指定してPDF出力
                         </button>
                         <div class="btn-note">
-                            ・「PDFとして保存」を選択すると<strong>『名前を付けて保存』画面</strong>が開きます。<br>
-                            ・名前や保存場所を自由に手動変更できます。
+                            ・『見積書_{display_banquet_name}_{formatted_date}.pdf』が初期名としてセットされます。<br>
+                            ・<strong>「名前を付けて保存」画面が開く</strong>ため、確認・修正して保存できます。
                         </div>
                     </div>
                     <div>
-                        <button class="btn-pdf" onclick="downloadPDF()">
-                            💾 設定されたファイル名で直接保存
+                        <button class="btn-print" onclick="window.print()">
+                            🖨️ 紙に印刷する
                         </button>
                         <div class="btn-note">
-                            ・『見積書_{display_banquet_name}_{formatted_date}.pdf』でダウンロードします。
+                            ・プリンターで印刷する場合に使用します。
                         </div>
                     </div>
                 </div>
 
                 <script>
-                    function downloadPDF() {{
+                    async function downloadPDFWithDialog() {{
                         const element = document.getElementById('pdf-area');
-                        
-                        // 自動生成ファイル名 (例: 見積書_〇〇株式会社_2026年07月23日.pdf)
-                        const pdfFileName = '見積書_{display_banquet_name}_{formatted_date}.pdf';
+                        const defaultFileName = '見積書_{display_banquet_name}_{formatted_date}.pdf';
                         
                         const opt = {{
                             margin:       [8, 8, 8, 8],
-                            filename:     pdfFileName,
+                            filename:     defaultFileName,
                             image:        {{ type: 'jpeg', quality: 0.98 }},
                             html2canvas:  {{ scale: 2, useCORS: true, logging: false }},
                             jsPDF:        {{ unit: 'mm', format: 'a4', orientation: 'portrait' }},
                             pagebreak:    {{ mode: ['avoid-all', 'css', 'legacy'] }}
                         }};
-                        
-                        html2pdf().set(opt).from(element).save();
+
+                        // モダンブラウザの Save File Picker を使用して保存先・ファイル名をユーザーに選ばせる
+                        if (window.showSaveFilePicker) {{
+                            try {{
+                                // PDF生成 (Blobとして取得)
+                                const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+                                
+                                // 名前を付けて保存ダイアログを強制表示
+                                const handle = await window.showSaveFilePicker({{
+                                    suggestedName: defaultFileName,
+                                    types: [{{
+                                        description: 'PDF Document',
+                                        accept: {{ 'application/pdf': ['.pdf'] }},
+                                    }}],
+                                }});
+                                
+                                const writable = await handle.createWritable();
+                                await writable.write(pdfBlob);
+                                await writable.close();
+                            }} catch (err) {{
+                                if (err.name !== 'AbortError') {{
+                                    // フォールバック（通常保存）
+                                    html2pdf().set(opt).from(element).save();
+                                }}
+                            }}
+                        }} else {{
+                            // 未対応ブラウザ用のフォールバック処理
+                            html2pdf().set(opt).from(element).save();
+                        }}
                     }}
                 </script>
             </body>
