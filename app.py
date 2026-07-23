@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import math
 
 st.set_page_config(page_title="マイク料金見積シミュレータ", page_icon="🎤", layout="wide")
 
@@ -46,29 +47,40 @@ try:
     
     st.markdown("---")
     
-    # 2. 利用時間選択
+    # 2. 利用時間選択（30分単位）
     st.subheader("⏰ ご利用時間を指定してください（幹事来館〜終了）")
-    time_options = [f"{h:02d}:00" for h in range(6, 24)]  # 06:00 ~ 23:00
+    
+    # 07:00 〜 23:00 までの30分刻みリスト作成
+    time_options = []
+    for h in range(7, 24):
+        time_options.append(f"{h:02d}:00")
+        if h < 23:
+            time_options.append(f"{h:02d}:30")
     
     col_t1, col_t2 = st.columns(2)
     with col_t1:
         start_time_str = st.selectbox("幹事来館時間", time_options, index=2, key="start_time") # デフォルト 08:00
     with col_t2:
-        end_time_str = st.selectbox("終了時間", time_options, index=8, key="end_time")     # デフォルト 14:00
+        end_time_str = st.selectbox("終了時間", time_options, index=14, key="end_time")     # デフォルト 14:00
         
-    start_hour = int(start_time_str.split(":")[0])
-    end_hour = int(end_time_str.split(":")[0])
+    start_h, start_m = map(int, start_time_str.split(":"))
+    end_h, end_m = map(int, end_time_str.split(":"))
     
-    use_hours = end_hour - start_hour
+    start_val = start_h + start_m / 60.0
+    end_val = end_h + end_m / 60.0
+    
+    use_hours = end_val - start_val
     
     if use_hours <= 0:
         st.warning("⚠️ 終了時間は開始時間より後の時間を選択してください。")
         use_hours = 0
+        raw_extension_hours = 0
+        extension_hours = 0
     else:
-        st.info(f"💡 利用予定時間: **{use_hours} 時間**")
-    
-    # 延長時間の計算（6時間を超えた時間数）
-    extension_hours = max(0, use_hours - 6)
+        st.info(f"💡 利用予定時間: **{use_hours:.1f} 時間**")
+        raw_extension_hours = max(0.0, use_hours - 6.0)
+        # 6時間を超えた端数時間を繰り上げ計算（例：0.5時間 ➔ 1時間）
+        extension_hours = math.ceil(raw_extension_hours)
     
     st.markdown("---")
     
@@ -168,10 +180,10 @@ try:
                     "小計": f"{base_price:,} 円"
                 })
             
-            # 基本料金の延長料金表示
+            # 基本料金の延長料金表示（繰り上げ後の時間数）
             if extension_hours > 0:
                 detail_table.append({
-                    "項目名": f"会場基本料金 延長（6時間超え分）",
+                    "項目名": f"会場基本料金 延長（繰り上げ算定: {extension_hours}時間分）",
                     "数量": f"{extension_hours} 時間",
                     "単価": f"{base_ext_unit_price:,} 円",
                     "小計": f"{base_ext_price:,} 円"
@@ -212,7 +224,7 @@ try:
                             # オペレーターの延長料金（発生時のみ参考表示）
                             if extension_hours > 0:
                                 detail_table.append({
-                                    "項目名": f"オペレーター 延長（※要確認）",
+                                    "項目名": f"オペレーター 延長（繰り上げ算定: {extension_hours}時間分 / ※要確認）",
                                     "数量": f"{extension_hours} 時間",
                                     "単価": f"{op_ext_unit_price:,} 円",
                                     "小計": f"{op_ext_price:,} 円 (参考価格/要確認)"
