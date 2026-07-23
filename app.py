@@ -94,7 +94,6 @@ try:
         st.session_state["loaded_data"] = None
 
     if not df_history.empty:
-        # 注意書きの表示
         st.caption("💡 **【検索のご案内】** 表示数は初期状態で直近件数に制限されていますが、検索バーに文字・数字を入力していただくことで、100件目以降の過去データも含めてすべての履歴から検索・呼び出しが可能です。")
         
         col_s1, col_s2 = st.columns([1, 2])
@@ -105,10 +104,8 @@ try:
                 placeholder="例: 「 Party 」「 Tanaka 」「 ＡＢＣ 」「 23 」など"
             )
             
-        # 全角半角・大文字小文字を吸収したフィルタリング
         filtered_df = df_history.copy()
         
-        # 検索キーワードがある場合は「全データ」から絞り込み
         if search_query.strip():
             q = normalize_text(search_query.strip())
             mask = (
@@ -121,13 +118,11 @@ try:
             filtered_df = filtered_df[mask]
             label_prefix = f"（検索結果: {len(filtered_df)}件）"
         else:
-            # 未検索時は「直近20件」のみに絞り込む（最新順）
             filtered_df = filtered_df.tail(20)
             label_prefix = f"（直近{len(filtered_df)}件を表示中）"
 
         with col_s2:
             if not filtered_df.empty:
-                # ドロップダウン用のラベル作成（新しい順）
                 history_options = ["（選択してください）"] + [
                     f"【{row['利用日付']}】{row['宴席名']} / 担当:{row.get('担当者名', '未入力')}（会場: {row['会場名']} / 保存: {row['保存日時']}）"
                     for _, row in filtered_df.iloc[::-1].iterrows()
@@ -144,7 +139,6 @@ try:
                             st.session_state["loaded_data"] = target_row.to_dict()
                             st.success(f"「{target_row['宴席名']}」の見積データを呼び出しました。下のフォームに反映されています。")
                     with col_btn2:
-                        # 🗑️ 削除ボタン
                         if st.button("🗑️ 選択中の履歴を削除", type="secondary", use_container_width=True):
                             delete_history_by_timestamp(target_row["保存日時"])
                             st.session_state["loaded_data"] = None
@@ -157,10 +151,9 @@ try:
 
     st.markdown("---")
 
-    # 呼び出しデータの準備
     loaded = st.session_state.get("loaded_data", {}) or {}
 
-    # 0. 宴席情報・基本情報の入力（上部）
+    # 0. 宴席情報・基本情報の入力
     st.subheader("📝 宴席情報・基本情報")
     col_info1, col_info2 = st.columns(2)
     with col_info1:
@@ -194,7 +187,7 @@ try:
 
     st.markdown("---")
     
-    # 2. 利用時間選択（30分単位）
+    # 2. 利用時間選択
     st.subheader("⏰ ご利用時間を指定してください（幹事来館〜終了）")
     
     time_options = []
@@ -287,7 +280,6 @@ try:
             else:
                 st.success(f"### **概算合計金額: {calc_total_price:,} 円**")
         with col_res2:
-            # 💾 履歴保存ボタン
             if st.button("💾 この見積を履歴に保存", use_container_width=True):
                 record = {
                     "保存日時": datetime.datetime.now().strftime("%Y/%m/%d %H:%M"),
@@ -490,13 +482,13 @@ try:
                         <button class="btn-print" onclick="window.print()">
                             🖨️ 印刷画面を開く
                         </button>
-                        <div class="btn-note">※紙に印刷したい場合</div>
+                        <div class="btn-note">※「PDFとして保存」を選べば場所と名前を指定できます</div>
                     </div>
                     <div>
                         <button class="btn-pdf" onclick="downloadPDF()">
                             💾 PDFファイルを直接保存
                         </button>
-                        <div class="btn-note">※ファイルとしてダウンロード保存する場合</div>
+                        <div class="btn-note">※自動で『見積書_宴席名_日付.pdf』としてダウンロード</div>
                     </div>
                 </div>
 
@@ -504,10 +496,12 @@ try:
                     function downloadPDF() {{
                         const element = document.getElementById('pdf-area');
                         
-                        // PDF生成オプション（改ページ制御とサイズ調整）
+                        // 自動生成ファイル名 (例: 見積書_〇〇株式会社_2026年07月23日.pdf)
+                        const pdfFileName = '見積書_{display_banquet_name}_{formatted_date}.pdf';
+                        
                         const opt = {{
-                            margin:       [8, 8, 8, 8], // 上右下左の余白(mm)
-                            filename:     '見積書_{display_banquet_name}.pdf',
+                            margin:       [8, 8, 8, 8],
+                            filename:     pdfFileName,
                             image:        {{ type: 'jpeg', quality: 0.98 }},
                             html2canvas:  {{ scale: 2, useCORS: true, logging: false }},
                             jsPDF:        {{ unit: 'mm', format: 'a4', orientation: 'portrait' }},
