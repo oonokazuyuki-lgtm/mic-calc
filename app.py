@@ -8,11 +8,11 @@ st.set_page_config(page_title="マイク料金見積シミュレータ", page_ic
 st.title("🎤 マイク料金見積シミュレータ")
 st.write("会場・宴席情報・利用時間・ご希望のマイク本数を入力すると、最適なプランの概算料金と内訳を算出します。")
 
-# Streamlitのテーブル表示で備考欄などを折り返さないカスタムCSS
+# 備考欄などのテーブルセルを折り返さず1行にするCSS
 st.markdown("""
 <style>
-    /* テーブルセル内のテキストの折り返しを防止 */
-    .stTable td, .stTable th, div[data-testid="stTable"] td, div[data-testid="stTable"] th {
+    /* Streamlitのテーブルセル全般で折り返しを禁止し1行表示にする */
+    div[data-testid="stTable"] td, div[data-testid="stTable"] th {
         white-space: nowrap !important;
     }
 </style>
