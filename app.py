@@ -206,40 +206,45 @@ try:
                     qty = 1
                     unit_str = "式"
                     
+                    # 前半の数量列から該当する数量を取得
                     matching_qty_cols = [c for c in cols[:base_price_idx] if str(c).split('.')[0] == clean_name]
                     if matching_qty_cols:
-                        qty = safe_int(row[matching_qty_cols[0]])
-                        unit_str = "本"
+                        found_qty = safe_int(row[matching_qty_cols[0]])
+                        if found_qty > 0:
+                            qty = found_qty
+                            unit_str = "本"
+                        else:
+                            qty = 1
+                            unit_str = "式"
                     elif 'オペレーター' in clean_name:
                         unit_str = "名"
                     
-                    if qty > 0:
-                        unit_price = subtotal // qty
+                    unit_price = subtotal // qty if qty > 0 else subtotal
+                    
+                    # オペレーターの場合は参考価格として表示
+                    if 'オペレーター' in clean_name:
+                        detail_table.append({
+                            "項目名": f"{clean_name}（※要確認）",
+                            "数量": f"{qty} {unit_str}",
+                            "単価": f"{unit_price:,} 円",
+                            "小計": f"{subtotal:,} 円 (参考価格/要確認)"
+                        })
                         
-                        # オペレーターの場合は参考価格として表示
-                        if 'オペレーター' in clean_name:
+                        # オペレーターの延長料金（発生時のみ参考表示）
+                        if extension_hours > 0:
                             detail_table.append({
-                                "項目名": f"{clean_name}（※要確認）",
-                                "数量": f"{qty} {unit_str}",
-                                "単価": f"{unit_price:,} 円",
-                                "小計": f"{subtotal:,} 円 (参考価格/要確認)"
+                                "項目名": f"オペレーター 延長（繰り上げ算定: {extension_hours}時間分 / ※要確認）",
+                                "数量": f"{extension_hours} 時間",
+                                "単価": f"{op_ext_unit_price:,} 円",
+                                "小計": f"{op_ext_price:,} 円 (参考価格/要確認)"
                             })
-                            
-                            # オペレーターの延長料金（発生時のみ参考表示）
-                            if extension_hours > 0:
-                                detail_table.append({
-                                    "項目名": f"オペレーター 延長（繰り上げ算定: {extension_hours}時間分 / ※要確認）",
-                                    "数量": f"{extension_hours} 時間",
-                                    "単価": f"{op_ext_unit_price:,} 円",
-                                    "小計": f"{op_ext_price:,} 円 (参考価格/要確認)"
-                                })
-                        else:
-                            detail_table.append({
-                                "項目名": clean_name,
-                                "数量": f"{qty} {unit_str}",
-                                "単価": f"{unit_price:,} 円",
-                                "小計": f"{subtotal:,} 円"
-                            })
+                    else:
+                        detail_table.append({
+                            "項目名": clean_name,
+                            "数量": f"{qty} {unit_str}",
+                            "単価": f"{unit_price:,} 円",
+                            "小計": f"{subtotal:,} 円"
+                        })
                         
         if detail_table:
             st.table(pd.DataFrame(detail_table))
