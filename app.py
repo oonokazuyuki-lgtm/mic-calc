@@ -71,7 +71,7 @@ try:
     data = load_data()
     venues = list(data.keys())
 
-    # --- 📜 過去ログ読み込み＆検索エリア ---
+    # --- 📜 過去ログ読み込み＆部分一致検索エリア ---
     st.markdown("### 📜 過去の見積履歴")
     df_history = load_history()
 
@@ -82,36 +82,41 @@ try:
     if not df_history.empty:
         col_s1, col_s2 = st.columns([1, 2])
         with col_s1:
-            search_query = st.text_input("🔍 履歴を検索（宴席名・日付・会場名など）", value="", placeholder="例：〇〇株式会社 / 2026-07 / ボールルーム")
+            search_query = st.text_input(
+                "🔍 履歴検索（頭文字・一部の文字・日付数字のみでもOK）", 
+                value="", 
+                placeholder="例: 「あ」「株」「23」「07」など"
+            )
             
-        # 検索キーワードで絞り込み
+        # 部分一致（頭文字・部分一致・日付数字）によるフィルタリング
         filtered_df = df_history.copy()
         if search_query.strip():
             q = search_query.strip().lower()
+            # 宴席名、利用日付、会場名、保存日時のいずれかにキーワードが含まれているかを判定
             filtered_df = filtered_df[
-                filtered_df["宴席名"].astype(str).str.lower().str.contains(q) |
-                filtered_df["利用日付"].astype(str).str.lower().str.contains(q) |
-                filtered_df["会場名"].astype(str).str.lower().str.contains(q) |
-                filtered_df["保存日時"].astype(str).str.lower().str.contains(q)
+                filtered_df["宴席名"].fillna("").astype(str).str.lower().str.contains(q, regex=False) |
+                filtered_df["利用日付"].fillna("").astype(str).str.lower().str.contains(q, regex=False) |
+                filtered_df["会場名"].fillna("").astype(str).str.lower().str.contains(q, regex=False) |
+                filtered_df["保存日時"].fillna("").astype(str).str.lower().str.contains(q, regex=False)
             ]
 
         with col_s2:
             if not filtered_df.empty:
+                count_str = f"（{len(filtered_df)}件ヒット）" if search_query.strip() else ""
                 # ドロップダウン用のラベル作成（新しい順）
                 history_options = ["（選択してください）"] + [
                     f"【{row['利用日付']}】{row['宴席名']}（会場: {row['会場名']} / 保存: {row['保存日時']}）"
                     for _, row in filtered_df.iloc[::-1].iterrows()
                 ]
-                selected_hist = st.selectbox("検索結果から呼び出す:", history_options)
+                selected_hist = st.selectbox(f"検索結果から呼び出す {count_str}:", history_options)
                 
                 if selected_hist != "（選択してください）":
-                    # 選択された行を特定
                     selected_idx = history_options.index(selected_hist) - 1
                     target_row = filtered_df.iloc[::-1].iloc[selected_idx]
                     st.session_state["loaded_data"] = target_row.to_dict()
                     st.success(f"「{target_row['宴席名']}」の見積データを呼び出しました。下のフォームに反映されています。")
             else:
-                st.warning("⚠️ 該当する見積履歴が見つかりませんでした。")
+                st.warning("⚠️ 該当する見積履歴が見つかりませんでした。文字や数字を変えてお試しください。")
     else:
         st.caption("※まだ保存された過去の履歴はありません。")
 
