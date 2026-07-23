@@ -48,46 +48,30 @@ try:
     st.subheader("🎤 ご希望のマイク本数を指定してください")
     st.caption("※基本料金に含まれるマイク本数も含めた「全体の必要本数」をご指定ください。")
     
-    is_pavilion = ("パビリオン" in selected_venue)
-    
-    # 会場が変更された際に初期値を更新するためのキー管理
-    if is_pavilion:
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            req_wired = st.number_input(
-                "有線マイク (本)", min_value=1, max_value=10, 
-                value=max(1, default_wired), key=f"wired_{selected_venue}"
-            )
-        with col2:
-            req_wireless = st.number_input(
-                "ワイヤレスマイク (本)", min_value=0, max_value=10, 
-                value=default_wireless, key=f"wireless_{selected_venue}"
-            )
-        with col3:
-            req_pin = st.number_input(
-                "ピンマイク (本)", min_value=0, max_value=10, 
-                value=default_pin, key=f"pin_{selected_venue}"
-            )
-    else:
-        req_wired = None
-        col1, col2 = st.columns(2)
-        with col1:
-            req_wireless = st.number_input(
-                "ワイヤレスマイク (本)", min_value=0, max_value=10, 
-                value=default_wireless, key=f"wireless_{selected_venue}"
-            )
-        with col2:
-            req_pin = st.number_input(
-                "ピンマイク (本)", min_value=0, max_value=10, 
-                value=default_pin, key=f"pin_{selected_venue}"
-            )
+    # 全会場で3列（有線・ワイヤレス・ピン）を表示
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        req_wired = st.number_input(
+            "有線マイク (本)", min_value=1, max_value=10, 
+            value=max(1, default_wired), key=f"wired_{selected_venue}"
+        )
+    with col2:
+        req_wireless = st.number_input(
+            "ワイヤレスマイク (本)", min_value=0, max_value=10, 
+            value=default_wireless, key=f"wireless_{selected_venue}"
+        )
+    with col3:
+        req_pin = st.number_input(
+            "ピンマイク (本)", min_value=0, max_value=10, 
+            value=default_pin, key=f"pin_{selected_venue}"
+        )
         
     st.markdown("---")
     
     # 列名の特定
     wireless_col = [c for c in df.columns if 'ワイ合計' in str(c)]
     pin_col = [c for c in df.columns if 'ピン合計' in str(c)]
-    wired_col = [c for c in df.columns if '有線合計' in str(c)]
+    wired_col = [c for c in df.columns if '有線合計' in str(c) or '基本有線' in str(c)]
     
     # 検索条件の作成
     cond = pd.Series([True] * len(df))
@@ -95,7 +79,7 @@ try:
         cond = cond & (df[wireless_col[0]].apply(safe_int) == req_wireless)
     if pin_col:
         cond = cond & (df[pin_col[0]].apply(safe_int) == req_pin)
-    if is_pavilion and wired_col and req_wired is not None:
+    if wired_col:
         cond = cond & (df[wired_col[0]].apply(safe_int) == req_wired)
         
     matched = df[cond]
