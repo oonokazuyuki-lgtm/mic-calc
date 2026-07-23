@@ -8,6 +8,16 @@ st.set_page_config(page_title="マイク料金見積シミュレータ", page_ic
 st.title("🎤 マイク料金見積シミュレータ")
 st.write("会場・宴席情報・利用時間・ご希望のマイク本数を入力すると、最適なプランの概算料金と内訳を算出します。")
 
+# Streamlitのテーブル表示で備考欄などを折り返さないカスタムCSS
+st.markdown("""
+<style>
+    /* テーブルセル内のテキストの折り返しを防止 */
+    .stTable td, .stTable th, div[data-testid="stTable"] td, div[data-testid="stTable"] th {
+        white-space: nowrap !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # データ読み込みおよび会場名の置換マップ定義
 NAME_MAPPING = {
     "ボールルーム": "シャングリ・ラボールルーム",
@@ -301,38 +311,7 @@ try:
                         })
                         
         if detail_table:
-            # 折り返しを絶対に行わないHTMLテーブルとしてレンダリング
-            df_detail_show = pd.DataFrame(detail_table)
-            table_no_wrap_html = f"""
-            <div style="overflow-x: auto; width: 100%;">
-                <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
-                    <thead>
-                        <tr style="background-color: #f2f2f2; border-bottom: 2px solid #ccc;">
-                            <th style="padding: 10px; white-space: nowrap;">項目名</th>
-                            <th style="padding: 10px; white-space: nowrap;">備考</th>
-                            <th style="padding: 10px; white-space: nowrap;">数量</th>
-                            <th style="padding: 10px; white-space: nowrap;">単価</th>
-                            <th style="padding: 10px; white-space: nowrap;">小計</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-            """
-            for item in detail_table:
-                table_no_wrap_html += f"""
-                        <tr style="border-bottom: 1px solid #eee;">
-                            <td style="padding: 10px; white-space: nowrap; font-weight: bold;">{item['項目名']}</td>
-                            <td style="padding: 10px; white-space: nowrap;">{item['備考']}</td>
-                            <td style="padding: 10px; white-space: nowrap;">{item['数量']}</td>
-                            <td style="padding: 10px; white-space: nowrap;">{item['単価']}</td>
-                            <td style="padding: 10px; white-space: nowrap;">{item['小計']}</td>
-                        </tr>
-                """
-            table_no_wrap_html += """
-                    </tbody>
-                </table>
-            </div>
-            """
-            st.markdown(table_no_wrap_html, unsafe_allow_html=True)
+            st.table(pd.DataFrame(detail_table))
 
         st.markdown("---")
 
