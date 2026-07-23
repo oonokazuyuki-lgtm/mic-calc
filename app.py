@@ -3,6 +3,7 @@ import pandas as pd
 import math
 import datetime
 import os
+import unicodedata
 
 st.set_page_config(page_title="マイク料金見積シミュレータ", page_icon="🎤", layout="wide")
 
@@ -41,6 +42,13 @@ def save_history(record):
         df_hist = pd.concat([df_hist, new_df], ignore_index=True)
     df_hist.to_csv(HISTORY_FILE, index=False, encoding="utf-8-sig")
 
+# 全角・半角・大文字・小文字を揃えて正規化する関数
+def normalize_text(text):
+    if not isinstance(text, str):
+        text = str(text) if text is not None else ""
+    # NFKC正規化（全角英数字・記号を半角に統一）して小文字化
+    return unicodedata.normalize('NFKC', text).lower()
+
 # データ読み込みおよび会場名の置換マップ定義
 NAME_MAPPING = {
     "ボールルーム": "シャングリ・ラボールルーム",
@@ -71,7 +79,7 @@ try:
     data = load_data()
     venues = list(data.keys())
 
-    # --- 📜 過去ログ読み込み＆部分一致検索エリア ---
+    # --- 📜 過去ログ読み込み＆全角半角あいまい検索エリア ---
     st.markdown("### 📜 過去の見積履歴")
     df_history = load_history()
 
@@ -83,22 +91,24 @@ try:
         col_s1, col_s2 = st.columns([1, 2])
         with col_s1:
             search_query = st.text_input(
-                "🔍 履歴検索（頭文字・一部の文字・日付数字のみでもOK）", 
+                "🔍 履歴検索（全角半角・頭文字・一部の文字でもOK）", 
                 value="", 
-                placeholder="例: 「あ」「株」「23」「07」など"
+                placeholder="例: 「 Party 」「 ＡＢＣ 」「 23 」など"
             )
             
-        # 部分一致（頭文字・部分一致・日付数字）によるフィルタリング
+        # 全角半角・大文字小文字を吸収したフィルタリング
         filtered_df = df_history.copy()
         if search_query.strip():
-            q = search_query.strip().lower()
-            # 宴席名、利用日付、会場名、保存日時のいずれかにキーワードが含まれているかを判定
-            filtered_df = filtered_df[
-                filtered_df["宴席名"].fillna("").astype(str).str.lower().str.contains(q, regex=False) |
-                filtered_df["利用日付"].fillna("").astype(str).str.lower().str.contains(q, regex=False) |
-                filtered_df["会場名"].fillna("").astype(str).str.lower().str.contains(q, regex=False) |
-                filtered_df["保存日時"].fillna("").astype(str).str.lower().str.contains(q, regex=False)
-            ]
+            q = normalize_text(search_query.strip())
+            
+            # 各列のテキストを正規化して比較
+            mask = (
+                filtered_df["宴席名"].apply(normalize_text).str.contains(q, regex=False) |
+                filtered_df["利用日付"].apply(normalize_text).str.contains(q, regex=False) |
+                filtered_df["会場名"].apply(normalize_text).str.contains(q, regex=False) |
+                filtered_df["保存日時"].apply(normalize_text).str.contains(q, regex=False)
+            )
+            filtered_df = filtered_df[mask]
 
         with col_s2:
             if not filtered_df.empty:
