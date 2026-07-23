@@ -4,7 +4,7 @@ import pandas as pd
 st.set_page_config(page_title="マイク料金見積シミュレータ", page_icon="🎤", layout="wide")
 
 st.title("🎤 マイク料金見積シミュレータ")
-st.write("会場とご希望のマイク本数を入力すると、最適なプランの概算料金と内訳を算出します。")
+st.write("会場・利用時間・ご希望のマイク本数を入力すると、最適なプランの概算料金と内訳を算出します。")
 
 # データ読み込み
 @st.cache_data
@@ -45,10 +45,37 @@ try:
     default_pin = get_base_qty("基本ピン")
     
     st.markdown("---")
+    
+    # 2. 利用時間選択
+    st.subheader("⏰ ご利用時間を指定してください（幹事来館〜終了）")
+    time_options = [f"{h:02d}:00" for h in range(6, 24)]  # 06:00 ~ 23:00
+    
+    col_t1, col_t2 = st.columns(2)
+    with col_t1:
+        start_time_str = st.selectbox("幹事来館時間", time_options, index=2, key="start_time") # デフォルト 08:00
+    with col_t2:
+        end_time_str = st.selectbox("終了時間", time_options, index=8, key="end_time")     # デフォルト 14:00
+        
+    start_hour = int(start_time_str.split(":")[0])
+    end_hour = int(end_time_str.split(":")[0])
+    
+    use_hours = end_hour - start_hour
+    
+    if use_hours <= 0:
+        st.warning("⚠️ 終了時間は開始時間より後の時間を選択してください。")
+        use_hours = 0
+    else:
+        st.info(f"💡 利用予定時間: **{use_hours} 時間**")
+    
+    # 延長時間の計算（6時間を超えた時間数）
+    extension_hours = max(0, use_hours - 6)
+    
+    st.markdown("---")
+    
+    # 3. マイク本数指定
     st.subheader("🎤 ご希望のマイク本数を指定してください")
     st.caption("※基本料金に含まれるマイク本数も含めた「全体の必要本数」をご指定ください。")
     
-    # 全会場で3列（有線・ワイヤレス・ピン）を表示
     col1, col2, col3 = st.columns(3)
     with col1:
         req_wired = st.number_input(
@@ -94,12 +121,22 @@ try:
         op_col = next((c for c in df.columns if 'オペレーター' in str(c)), None)
         op_price = safe_int(row[op_col]) if op_col else 0
         
-        # オペレーター料金が発生している場合のみ差し引いて注記を付ける
+        # 基本料金の延長単価判定（ボールルーム: 15,000円 / その他: 3,000円）
+        is_ballroom = ("ボールルーム" in selected_venue)
+        base_ext_unit_price = 15000 if is_ballroom else 3000
+        base_ext_price = extension_hours * base_ext_unit_price
+        
+        # オペレーター延長単価（全会場一律 15,000円）
+        op_ext_unit_price = 15000
+        op_ext_price = extension_hours * op_ext_unit_price if op_price > 0 else 0
+        
+        # オペレーター料金（本体）がある場合は合計から除外
+        calc_total_price = (raw_total_price - op_price) + base_ext_price
+        
         if op_price > 0:
-            calc_total_price = raw_total_price - op_price
             st.success(f"### **概算合計金額: {calc_total_price:,} 円** (※オペレーター料金除く)")
         else:
-            st.success(f"### **概算合計金額: {raw_total_price:,} 円**")
+            st.success(f"### **概算合計金額: {calc_total_price:,} 円**")
         
         if '連絡' in row and str(row['連絡']).strip() in ['〇', '○', '1']:
             st.warning("⚠️ この構成は音響オペレーターまたは追加機器の調整が必要です（連絡要）。")
@@ -123,12 +160,21 @@ try:
                     if '基本' in c_name and c_qty > 0:
                         base_info.append(f"{c_name}:{c_qty}本")
                 
-                info_str = f" ({', '.join(base_info)}込)" if base_info else ""
+                info_str = f" ({', '.join(base_info)}込 / 6時間)" if base_info else " (6時間)"
                 detail_table.append({
                     "項目名": f"基本料金{info_str}",
                     "数量": "1 式",
                     "単価": f"{base_price:,} 円",
                     "小計": f"{base_price:,} 円"
+                })
+            
+            # 基本料金の延長料金表示
+            if extension_hours > 0:
+                detail_table.append({
+                    "項目名": f"会場基本料金 延長（6時間超え分）",
+                    "数量": f"{extension_hours} 時間",
+                    "単価": f"{base_ext_unit_price:,} 円",
+                    "小計": f"{base_ext_price:,} 円"
                 })
             
             # 2. 追加・仮設マイクおよび機材・オペレーター
@@ -162,6 +208,15 @@ try:
                                 "単価": f"{unit_price:,} 円",
                                 "小計": f"{subtotal:,} 円 (参考価格/要確認)"
                             })
+                            
+                            # オペレーターの延長料金（発生時のみ参考表示）
+                            if extension_hours > 0:
+                                detail_table.append({
+                                    "項目名": f"オペレーター 延長（※要確認）",
+                                    "数量": f"{extension_hours} 時間",
+                                    "単価": f"{op_ext_unit_price:,} 円",
+                                    "小計": f"{op_ext_price:,} 円 (参考価格/要確認)"
+                                })
                         else:
                             detail_table.append({
                                 "項目名": clean_name,
