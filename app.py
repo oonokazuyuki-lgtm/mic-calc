@@ -257,10 +257,15 @@ try:
                     
                     unit_price = subtotal // qty if qty > 0 else subtotal
                     
-                    # 備考メッセージの判定（項目名単位で明確に判定）
+                    # 備考メッセージの判定（金額または項目名で条件分岐）
                     note = "-"
                     if 'デジタルミキサー' in clean_name:
-                        note = "ピンマイク3本以上で必要となります"
+                        if subtotal == 60000:
+                            note = "ピンマイク3本以上で必要となります"
+                        elif subtotal == 40000:
+                            note = "ピンマイクが入った時、マイクの本数が多い時必要となる"
+                        else:
+                            note = "ピンマイクが入った時、マイクの本数が多い時必要となる"
                     elif is_ballroom:
                         if '追加' in clean_name:
                             note = "ワイヤレス使用4本以下の為"
