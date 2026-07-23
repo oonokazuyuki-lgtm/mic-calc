@@ -79,14 +79,16 @@ try:
         row = matched.iloc[0]
         raw_total_price = safe_int(row['合計']) if '合計' in row else 0
         
-        # オペレーター料金の取得（合計から引いて参考価格扱いにするため）
+        # オペレーター料金の取得
         op_col = next((c for c in df.columns if 'オペレーター' in str(c)), None)
         op_price = safe_int(row[op_col]) if op_col else 0
         
-        # オペレーター金額を除外した概算合計額
-        calc_total_price = raw_total_price - op_price
-        
-        st.success(f"### **概算合計金額: {calc_total_price:,} 円** (※オペレーター料金除く)")
+        # オペレーター料金が発生している場合のみ差し引いて注記を付ける
+        if op_price > 0:
+            calc_total_price = raw_total_price - op_price
+            st.success(f"### **概算合計金額: {calc_total_price:,} 円** (※オペレーター料金除く)")
+        else:
+            st.success(f"### **概算合計金額: {raw_total_price:,} 円**")
         
         if '連絡' in row and str(row['連絡']).strip() in ['〇', '○', '1']:
             st.warning("⚠️ この構成は音響オペレーターまたは追加機器の調整が必要です（連絡要）。")
@@ -141,7 +143,7 @@ try:
                     if qty > 0:
                         unit_price = subtotal // qty
                         
-                        # オペレーターの場合は参考価格として注記
+                        # オペレーターの場合は参考価格として表示
                         if 'オペレーター' in clean_name:
                             detail_table.append({
                                 "項目名": f"{clean_name}（※要確認）",
