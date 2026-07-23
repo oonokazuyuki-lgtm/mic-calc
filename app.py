@@ -71,7 +71,7 @@ try:
     data = load_data()
     venues = list(data.keys())
 
-    # --- 📜 過去ログ読み込みエリア ---
+    # --- 📜 過去ログ読み込み＆検索エリア ---
     st.markdown("### 📜 過去の見積履歴")
     df_history = load_history()
 
@@ -80,18 +80,38 @@ try:
         st.session_state["loaded_data"] = None
 
     if not df_history.empty:
-        # ドロップダウン用のラベル作成
-        history_options = ["（選択してください）"] + [
-            f"{row['保存日時']} | {row['宴席名']}（{row['会場名']}）"
-            for _, row in df_history.iloc[::-1].iterrows() # 新しい順に表示
-        ]
-        selected_hist = st.selectbox("過去の見積履歴から呼び出す:", history_options)
-        
-        if selected_hist != "（選択してください）":
-            # 選択された行を特定
-            hist_idx = len(df_history) - history_options.index(selected_hist)
-            st.session_state["loaded_data"] = df_history.iloc[hist_idx].to_dict()
-            st.success("過去の見積データを呼び出しました。下のフォームに反映されています。")
+        col_s1, col_s2 = st.columns([1, 2])
+        with col_s1:
+            search_query = st.text_input("🔍 履歴を検索（宴席名・日付・会場名など）", value="", placeholder="例：〇〇株式会社 / 2026-07 / ボールルーム")
+            
+        # 検索キーワードで絞り込み
+        filtered_df = df_history.copy()
+        if search_query.strip():
+            q = search_query.strip().lower()
+            filtered_df = filtered_df[
+                filtered_df["宴席名"].astype(str).str.lower().str.contains(q) |
+                filtered_df["利用日付"].astype(str).str.lower().str.contains(q) |
+                filtered_df["会場名"].astype(str).str.lower().str.contains(q) |
+                filtered_df["保存日時"].astype(str).str.lower().str.contains(q)
+            ]
+
+        with col_s2:
+            if not filtered_df.empty:
+                # ドロップダウン用のラベル作成（新しい順）
+                history_options = ["（選択してください）"] + [
+                    f"【{row['利用日付']}】{row['宴席名']}（会場: {row['会場名']} / 保存: {row['保存日時']}）"
+                    for _, row in filtered_df.iloc[::-1].iterrows()
+                ]
+                selected_hist = st.selectbox("検索結果から呼び出す:", history_options)
+                
+                if selected_hist != "（選択してください）":
+                    # 選択された行を特定
+                    selected_idx = history_options.index(selected_hist) - 1
+                    target_row = filtered_df.iloc[::-1].iloc[selected_idx]
+                    st.session_state["loaded_data"] = target_row.to_dict()
+                    st.success(f"「{target_row['宴席名']}」の見積データを呼び出しました。下のフォームに反映されています。")
+            else:
+                st.warning("⚠️ 該当する見積履歴が見つかりませんでした。")
     else:
         st.caption("※まだ保存された過去の履歴はありません。")
 
