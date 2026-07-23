@@ -46,7 +46,6 @@ def save_history(record):
 def normalize_text(text):
     if not isinstance(text, str):
         text = str(text) if text is not None else ""
-    # NFKC正規化（全角英数字・記号を半角に統一）して小文字化
     return unicodedata.normalize('NFKC', text).lower()
 
 # データ読み込みおよび会場名の置換マップ定義
@@ -91,9 +90,9 @@ try:
         col_s1, col_s2 = st.columns([1, 2])
         with col_s1:
             search_query = st.text_input(
-                "🔍 履歴検索（全角半角・頭文字・一部の文字でもOK）", 
+                "🔍 履歴検索（宴席名・担当者名・日付・会場など）", 
                 value="", 
-                placeholder="例: 「 Party 」「 ＡＢＣ 」「 23 」など"
+                placeholder="例: 「 Party 」「 Tanaka 」「 ＡＢＣ 」「 23 」など"
             )
             
         # 全角半角・大文字小文字を吸収したフィルタリング
@@ -101,9 +100,10 @@ try:
         if search_query.strip():
             q = normalize_text(search_query.strip())
             
-            # 各列のテキストを正規化して比較
+            # 各列のテキストを正規化して比較（担当者名を追加）
             mask = (
                 filtered_df["宴席名"].apply(normalize_text).str.contains(q, regex=False) |
+                filtered_df["担当者名"].fillna("").apply(normalize_text).str.contains(q, regex=False) |
                 filtered_df["利用日付"].apply(normalize_text).str.contains(q, regex=False) |
                 filtered_df["会場名"].apply(normalize_text).str.contains(q, regex=False) |
                 filtered_df["保存日時"].apply(normalize_text).str.contains(q, regex=False)
@@ -113,9 +113,10 @@ try:
         with col_s2:
             if not filtered_df.empty:
                 count_str = f"（{len(filtered_df)}件ヒット）" if search_query.strip() else ""
-                # ドロップダウン用のラベル作成（新しい順）
+                
+                # ドロップダウン用のラベル作成（担当者名も表示）
                 history_options = ["（選択してください）"] + [
-                    f"【{row['利用日付']}】{row['宴席名']}（会場: {row['会場名']} / 保存: {row['保存日時']}）"
+                    f"【{row['利用日付']}】{row['宴席名']} / 担当:{row.get('担当者名', '未入力')}（会場: {row['会場名']} / 保存: {row['保存日時']}）"
                     for _, row in filtered_df.iloc[::-1].iterrows()
                 ]
                 selected_hist = st.selectbox(f"検索結果から呼び出す {count_str}:", history_options)
@@ -141,6 +142,11 @@ try:
     with col_info1:
         default_banquet = loaded.get("宴席名", "")
         banquet_name = st.text_input("宴席名（手入力）", value=default_banquet, placeholder="例：〇〇株式会社 様 ご利用")
+        
+        # 宴席名の真下に担当者名を追加
+        default_staff = loaded.get("担当者名", "")
+        staff_name = st.text_input("担当者名（アルファベット手入力）", value=default_staff, placeholder="例：Tanaka / John Smith")
+
     with col_info2:
         default_date = datetime.datetime.strptime(loaded["利用日付"], "%Y-%m-%d").date() if "利用日付" in loaded else datetime.date.today()
         event_date = st.date_input("利用日付", value=default_date)
@@ -263,6 +269,7 @@ try:
                 record = {
                     "保存日時": datetime.datetime.now().strftime("%Y/%m/%d %H:%M"),
                     "宴席名": banquet_name if banquet_name.strip() else "（未入力）",
+                    "担当者名": staff_name if staff_name.strip() else "（未入力）",
                     "利用日付": event_date.strftime("%Y-%m-%d"),
                     "会場名": selected_venue,
                     "開始時間": start_time_str,
@@ -283,10 +290,12 @@ try:
                 st.warning("⚠️ この構成は追加機器の調整が必要です（連絡要）。")
             
         display_banquet_name = banquet_name if banquet_name.strip() else "（未入力）"
+        display_staff_name = staff_name if staff_name.strip() else "（未入力）"
         formatted_date = event_date.strftime("%Y年%m月%d日")
         
         st.info(f"📌 **宴席・基本情報**\n\n"
                 f"- **宴席名:** {display_banquet_name}\n"
+                f"- **担当者名:** {display_staff_name}\n"
                 f"- **利用日付:** {formatted_date}\n"
                 f"- **会場名:** {selected_venue}\n"
                 f"- **ご利用時間:** {start_time_str} 〜 {end_time_str} （{use_hours:.1f}時間）")
@@ -423,6 +432,7 @@ try:
                 <h2>🎤 音響マイク機材 見積・内訳明細書</h2>
                 <div class="summary">
                     <p><strong>宴席名:</strong> {display_banquet_name}</p>
+                    <p><strong>担当者名:</strong> {display_staff_name}</p>
                     <p><strong>利用日付:</strong> {formatted_date}</p>
                     <p><strong>会場名:</strong> {selected_venue}</p>
                     <p><strong>ご利用時間:</strong> {start_time_str} 〜 {end_time_str} （{use_hours:.1f}時間）</p>
