@@ -259,7 +259,9 @@ try:
                     
                     # 備考メッセージの判定（項目名単位で明確に判定）
                     note = "-"
-                    if is_ballroom:
+                    if 'デジタルミキサー' in clean_name:
+                        note = "ピンマイク3本以上で必要となります"
+                    elif is_ballroom:
                         if '追加' in clean_name:
                             note = "ワイヤレス使用4本以下の為"
                         elif '仮設' in clean_name:
