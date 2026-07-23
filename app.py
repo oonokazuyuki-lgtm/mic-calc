@@ -8,6 +8,16 @@ st.set_page_config(page_title="マイク料金見積シミュレータ", page_ic
 st.title("🎤 マイク料金見積シミュレータ")
 st.write("会場・宴席情報・利用時間・ご希望のマイク本数を入力すると、最適なプランの概算料金と内訳を算出します。")
 
+# Streamlitのテーブル表示で備考欄などを折り返さないカスタムCSS
+st.markdown("""
+<style>
+    /* テーブルセル内のテキストの折り返しを防止 */
+    .stTable td, .stTable th, div[data-testid="stTable"] td, div[data-testid="stTable"] th {
+        white-space: nowrap !important;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # データ読み込みおよび会場名の置換マップ定義
 NAME_MAPPING = {
     "ボールルーム": "シャングリ・ラボールルーム",
@@ -325,7 +335,7 @@ try:
                     .summary p {{ margin: 5px 0; font-size: 14px; }}
                     .price-box {{ font-size: 20px; font-weight: bold; color: #1a5276; margin: 15px 0; }}
                     table.print-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
-                    table.print-table th, table.print-table td {{ border: 1px solid #ccc; padding: 8px 12px; text-align: left; font-size: 13px; }}
+                    table.print-table th, table.print-table td {{ border: 1px solid #ccc; padding: 8px 12px; text-align: left; font-size: 13px; white-space: nowrap; }}
                     table.print-table th {{ background-color: #f2f2f2; }}
                     @media print {{
                         .no-print {{ display: none; }}
