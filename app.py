@@ -97,10 +97,10 @@ try:
             
         # 全角半角・大文字小文字を吸収したフィルタリング
         filtered_df = df_history.copy()
+        
+        # 検索キーワードがある場合は「全データ」から絞り込み
         if search_query.strip():
             q = normalize_text(search_query.strip())
-            
-            # 各列のテキストを正規化して比較（担当者名を追加）
             mask = (
                 filtered_df["宴席名"].apply(normalize_text).str.contains(q, regex=False) |
                 filtered_df["担当者名"].fillna("").apply(normalize_text).str.contains(q, regex=False) |
@@ -109,17 +109,20 @@ try:
                 filtered_df["保存日時"].apply(normalize_text).str.contains(q, regex=False)
             )
             filtered_df = filtered_df[mask]
+            label_prefix = f"（検索結果: {len(filtered_df)}件）"
+        else:
+            # 未検索時は「直近100件」のみに絞り込む（最新順）
+            filtered_df = filtered_df.tail(100)
+            label_prefix = f"（直近{len(filtered_df)}件を表示中）"
 
         with col_s2:
             if not filtered_df.empty:
-                count_str = f"（{len(filtered_df)}件ヒット）" if search_query.strip() else ""
-                
-                # ドロップダウン用のラベル作成（担当者名も表示）
+                # ドロップダウン用のラベル作成（新しい順）
                 history_options = ["（選択してください）"] + [
                     f"【{row['利用日付']}】{row['宴席名']} / 担当:{row.get('担当者名', '未入力')}（会場: {row['会場名']} / 保存: {row['保存日時']}）"
                     for _, row in filtered_df.iloc[::-1].iterrows()
                 ]
-                selected_hist = st.selectbox(f"検索結果から呼び出す {count_str}:", history_options)
+                selected_hist = st.selectbox(f"検索結果から呼び出す {label_prefix}:", history_options)
                 
                 if selected_hist != "（選択してください）":
                     selected_idx = history_options.index(selected_hist) - 1
@@ -143,7 +146,6 @@ try:
         default_banquet = loaded.get("宴席名", "")
         banquet_name = st.text_input("宴席名（手入力）", value=default_banquet, placeholder="例：〇〇株式会社 様 ご利用")
         
-        # 宴席名の真下に担当者名を追加
         default_staff = loaded.get("担当者名", "")
         staff_name = st.text_input("担当者名（アルファベット手入力）", value=default_staff, placeholder="例：Tanaka / John Smith")
 
