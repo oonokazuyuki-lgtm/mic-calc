@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import math
 import datetime
+import os
 
 st.set_page_config(page_title="マイク料金見積シミュレータ", page_icon="🎤", layout="wide")
 
@@ -18,6 +19,28 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# 履歴保存用のCSVファイルパス
+HISTORY_FILE = "estimates_history.csv"
+
+# 履歴データを読み込む関数
+def load_history():
+    if os.path.exists(HISTORY_FILE):
+        try:
+            return pd.read_csv(HISTORY_FILE)
+        except Exception:
+            return pd.DataFrame()
+    return pd.DataFrame()
+
+# 履歴データを保存する関数
+def save_history(record):
+    df_hist = load_history()
+    new_df = pd.DataFrame([record])
+    if df_hist.empty:
+        df_hist = new_df
+    else:
+        df_hist = pd.concat([df_hist, new_df], ignore_index=True)
+    df_hist.to_csv(HISTORY_FILE, index=False, encoding="utf-8-sig")
+
 # データ読み込みおよび会場名の置換マップ定義
 NAME_MAPPING = {
     "ボールルーム": "シャングリ・ラボールルーム",
@@ -32,7 +55,6 @@ def load_data():
     xls = pd.ExcelFile(excel_file)
     data_dict = {}
     for sheet in xls.sheet_names:
-        # 表示名をマッピングルールに従って変更
         display_name = NAME_MAPPING.get(sheet, sheet)
         df = pd.read_excel(excel_file, sheet_name=sheet)
         df = df.fillna(0)
@@ -47,51 +69,84 @@ def safe_int(val):
 
 try:
     data = load_data()
-    
+    venues = list(data.keys())
+
+    # --- 📜 過去ログ読み込みエリア ---
+    st.markdown("### 📜 過去の見積履歴")
+    df_history = load_history()
+
+    # セッション状態の初期化
+    if "loaded_data" not in st.session_state:
+        st.session_state["loaded_data"] = None
+
+    if not df_history.empty:
+        # ドロップダウン用のラベル作成
+        history_options = ["（選択してください）"] + [
+            f"{row['保存日時']} | {row['宴席名']}（{row['会場名']}）"
+            for _, row in df_history.iloc[::-1].iterrows() # 新しい順に表示
+        ]
+        selected_hist = st.selectbox("過去の見積履歴から呼び出す:", history_options)
+        
+        if selected_hist != "（選択してください）":
+            # 選択された行を特定
+            hist_idx = len(df_history) - history_options.index(selected_hist)
+            st.session_state["loaded_data"] = df_history.iloc[hist_idx].to_dict()
+            st.success("過去の見積データを呼び出しました。下のフォームに反映されています。")
+    else:
+        st.caption("※まだ保存された過去の履歴はありません。")
+
+    st.markdown("---")
+
+    # 呼び出しデータの準備
+    loaded = st.session_state.get("loaded_data", {}) or {}
+
     # 0. 宴席情報・基本情報の入力（上部）
     st.subheader("📝 宴席情報・基本情報")
     col_info1, col_info2 = st.columns(2)
     with col_info1:
-        banquet_name = st.text_input("宴席名（手入力）", value="", placeholder="例：〇〇株式会社 様 ご利用")
+        default_banquet = loaded.get("宴席名", "")
+        banquet_name = st.text_input("宴席名（手入力）", value=default_banquet, placeholder="例：〇〇株式会社 様 ご利用")
     with col_info2:
-        event_date = st.date_input("利用日付", value=datetime.date.today())
+        default_date = datetime.datetime.strptime(loaded["利用日付"], "%Y-%m-%d").date() if "利用日付" in loaded else datetime.date.today()
+        event_date = st.date_input("利用日付", value=default_date)
         
     st.markdown("---")
     
     # 1. 会場選択
-    venues = list(data.keys())
-    selected_venue = st.selectbox("📍 会場を選択してください", venues)
+    default_venue_idx = venues.index(loaded["会場名"]) if "会場名" in loaded and loaded["会場名"] in venues else 0
+    selected_venue = st.selectbox("📍 会場を選択してください", venues, index=default_venue_idx)
     
     df = data[selected_venue]
     
-    # 選択した会場の基本マイク本数（基本プランの1行目）をデフォルト値として取得
+    # デフォルトマイク本数
     first_row = df.iloc[0]
-    
     def get_base_qty(col_keyword):
         col = next((c for c in df.columns if col_keyword in str(c)), None)
         return safe_int(first_row[col]) if col else 0
 
-    default_wired = get_base_qty("基本有線")
-    default_wireless = get_base_qty("基本ワイヤレス")
-    default_pin = get_base_qty("基本ピン")
-    
+    default_wired = loaded.get("有線マイク本数", max(1, get_base_qty("基本有線")))
+    default_wireless = loaded.get("ワイヤレスマイク本数", get_base_qty("基本ワイヤレス"))
+    default_pin = loaded.get("ピンマイク本数", get_base_qty("基本ピン"))
+
     st.markdown("---")
     
     # 2. 利用時間選択（30分単位）
     st.subheader("⏰ ご利用時間を指定してください（幹事来館〜終了）")
     
-    # 07:00 〜 23:00 までの30分刻みリスト作成
     time_options = []
     for h in range(7, 24):
         time_options.append(f"{h:02d}:00")
         if h < 23:
             time_options.append(f"{h:02d}:30")
     
+    start_idx = time_options.index(loaded["開始時間"]) if "開始時間" in loaded and loaded["開始時間"] in time_options else 2
+    end_idx = time_options.index(loaded["終了時間"]) if "終了時間" in loaded and loaded["終了時間"] in time_options else 14
+
     col_t1, col_t2 = st.columns(2)
     with col_t1:
-        start_time_str = st.selectbox("幹事来館時間", time_options, index=2, key="start_time") # デフォルト 08:00
+        start_time_str = st.selectbox("幹事来館時間", time_options, index=start_idx, key="start_time")
     with col_t2:
-        end_time_str = st.selectbox("終了時間", time_options, index=14, key="end_time")     # デフォルト 14:00
+        end_time_str = st.selectbox("終了時間", time_options, index=end_idx, key="end_time")
         
     start_h, start_m = map(int, start_time_str.split(":"))
     end_h, end_m = map(int, end_time_str.split(":"))
@@ -104,12 +159,10 @@ try:
     if use_hours <= 0:
         st.warning("⚠️ 終了時間は開始時間より後の時間を選択してください。")
         use_hours = 0
-        raw_extension_hours = 0
         extension_hours = 0
     else:
         st.info(f"💡 利用予定時間: **{use_hours:.1f} 時間**")
         raw_extension_hours = max(0.0, use_hours - 6.0)
-        # 6時間を超えた端数時間を繰り上げ計算（例：0.5時間 ➔ 1時間）
         extension_hours = math.ceil(raw_extension_hours)
     
     st.markdown("---")
@@ -120,33 +173,21 @@ try:
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        req_wired = st.number_input(
-            "有線マイク (本)", min_value=1, max_value=10, 
-            value=max(1, default_wired), key=f"wired_{selected_venue}"
-        )
+        req_wired = st.number_input("有線マイク (本)", min_value=1, max_value=10, value=safe_int(default_wired), key=f"wired_{selected_venue}")
     with col2:
-        req_wireless = st.number_input(
-            "ワイヤレスマイク (本)", min_value=0, max_value=10, 
-            value=default_wireless, key=f"wireless_{selected_venue}"
-        )
+        req_wireless = st.number_input("ワイヤレスマイク (本)", min_value=0, max_value=10, value=safe_int(default_wireless), key=f"wireless_{selected_venue}")
     with col3:
-        req_pin = st.number_input(
-            "ピンマイク (本)", min_value=0, max_value=10, 
-            value=default_pin, key=f"pin_{selected_venue}"
-        )
+        req_pin = st.number_input("ピンマイク (本)", min_value=0, max_value=10, value=safe_int(default_pin), key=f"pin_{selected_venue}")
         
     st.markdown("---")
     
-    # 列名の特定（『合計』列を優先して検索）
+    # 検索処理
     wireless_col = next((c for c in df.columns if 'ワイ合計' in str(c)), None)
     pin_col = next((c for c in df.columns if 'ピン合計' in str(c)), None)
     wired_col = next((c for c in df.columns if '有線合計' in str(c)), None)
-    
-    # 有線合計列がない場合のみ基本有線列で代替
     if not wired_col:
         wired_col = next((c for c in df.columns if '基本有線' in str(c)), None)
     
-    # 検索条件の作成
     cond = pd.Series([True] * len(df))
     if wireless_col:
         cond = cond & (df[wireless_col].apply(safe_int) == req_wireless)
@@ -163,35 +204,49 @@ try:
         row = matched.iloc[0]
         raw_total_price = safe_int(row['合計']) if '合計' in row else 0
         
-        # オペレーター料金の取得
         op_col = next((c for c in df.columns if 'オペレーター' in str(c)), None)
         op_price = safe_int(row[op_col]) if op_col else 0
         
-        # ボールルーム判定および延長単価の設定
         is_ballroom = ("ボールルーム" in selected_venue)
         base_ext_unit_price = 15000 if is_ballroom else 3000
         base_ext_price = extension_hours * base_ext_unit_price
         
-        # オペレーター延長単価（全会場一律 15,000円）
         op_ext_unit_price = 15000
         op_ext_price = extension_hours * op_ext_unit_price if op_price > 0 else 0
         
-        # オペレーター料金（本体）がある場合は合計から除外
         calc_total_price = (raw_total_price - op_price) + base_ext_price
         
-        if op_price > 0:
-            st.success(f"### **概算合計金額: {calc_total_price:,} 円** (※オペレーター料金除く)")
-        else:
-            st.success(f"### **概算合計金額: {calc_total_price:,} 円**")
-        
-        # 連絡フラグの表示分岐（オペレーターの要不要で文章変更）
+        col_res1, col_res2 = st.columns([3, 1])
+        with col_res1:
+            if op_price > 0:
+                st.success(f"### **概算合計金額: {calc_total_price:,} 円** (※オペレーター料金除く)")
+            else:
+                st.success(f"### **概算合計金額: {calc_total_price:,} 円**")
+        with col_res2:
+            # 💾 履歴保存ボタン
+            if st.button("💾 この見積を履歴に保存", use_container_width=True):
+                record = {
+                    "保存日時": datetime.datetime.now().strftime("%Y/%m/%d %H:%M"),
+                    "宴席名": banquet_name if banquet_name.strip() else "（未入力）",
+                    "利用日付": event_date.strftime("%Y-%m-%d"),
+                    "会場名": selected_venue,
+                    "開始時間": start_time_str,
+                    "終了時間": end_time_str,
+                    "有線マイク本数": req_wired,
+                    "ワイヤレスマイク本数": req_wireless,
+                    "ピンマイク本数": req_pin,
+                    "概算合計金額": calc_total_price
+                }
+                save_history(record)
+                st.toast("✅ 見積履歴に保存しました！", icon="🎉")
+                st.rerun()
+
         if '連絡' in row and str(row['連絡']).strip() in ['〇', '○', '1']:
             if op_price > 0:
                 st.warning("⚠️ この構成は音響オペレーターまたは追加機器の調整が必要です（連絡要）。")
             else:
                 st.warning("⚠️ この構成は追加機器の調整が必要です（連絡要）。")
             
-        # 📌 見積結果（金額）の直下に「宴席・基本情報」を表示
         display_banquet_name = banquet_name if banquet_name.strip() else "（未入力）"
         formatted_date = event_date.strftime("%Y年%m月%d日")
         
@@ -205,12 +260,9 @@ try:
         
         detail_table = []
         cols = list(df.columns)
-        
-        # 基本料金列の位置を取得
         base_price_idx = next((i for i, c in enumerate(cols) if '基本料金' in str(c)), -1)
         
         if base_price_idx != -1:
-            # 1. 基本料金
             base_price = safe_int(row[cols[base_price_idx]])
             if base_price > 0:
                 base_info = []
@@ -229,7 +281,6 @@ try:
                     "小計": f"{base_price:,} 円"
                 })
             
-            # 基本料金の延長料金表示（繰り上げ後の時間数）
             if extension_hours > 0:
                 detail_table.append({
                     "項目名": "会場基本料金 延長",
@@ -239,7 +290,6 @@ try:
                     "小計": f"{base_ext_price:,} 円"
                 })
             
-            # 2. 追加・仮設マイクおよび機材・オペレーター
             for idx in range(base_price_idx + 1, len(cols)):
                 col_name = str(cols[idx])
                 clean_name = col_name.split('.')[0]
@@ -251,8 +301,6 @@ try:
                 if subtotal > 0:
                     qty = 1
                     unit_str = "式"
-                    
-                    # 前半の数量列から該当する数量を取得
                     matching_qty_cols = [c for c in cols[:base_price_idx] if str(c).split('.')[0] == clean_name]
                     if matching_qty_cols:
                         found_qty = safe_int(row[matching_qty_cols[0]])
@@ -267,7 +315,6 @@ try:
                     
                     unit_price = subtotal // qty if qty > 0 else subtotal
                     
-                    # 備考メッセージの判定（金額または項目名で条件分岐）
                     note = "-"
                     if 'デジタルミキサー' in clean_name:
                         if subtotal == 60000:
@@ -282,7 +329,6 @@ try:
                         elif '仮設' in clean_name:
                             note = "ワイヤレス（ハンド・ピン）5本以上使用の為"
                     
-                    # オペレーターの場合は参考価格として表示
                     if 'オペレーター' in clean_name:
                         detail_table.append({
                             "項目名": clean_name,
@@ -291,8 +337,6 @@ try:
                             "単価": f"{unit_price:,} 円",
                             "小計": f"{subtotal:,} 円"
                         })
-                        
-                        # オペレーターの延長料金（発生時のみ参考表示）
                         if extension_hours > 0:
                             detail_table.append({
                                 "項目名": "オペレーター 延長",
@@ -315,11 +359,9 @@ try:
 
         st.markdown("---")
 
-        # 📄 PDF印刷機能（ポップアップ印刷ウィンドウ出力）
+        # 📄 PDF印刷機能
         with st.expander("🖨️ PDF保存・印刷用のページを表示（保存ボタン）", expanded=False):
             st.caption("※下の「ブラウザの印刷機能を開く」ボタンを押すと、内訳とサマリーのみのレイアウトでPDF保存・印刷が可能です。")
-            
-            # HTMLテーブル変換
             df_detail = pd.DataFrame(detail_table)
             table_html = df_detail.to_html(index=False, classes='print-table')
 
