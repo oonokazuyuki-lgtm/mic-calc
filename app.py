@@ -199,9 +199,8 @@ try:
         # 基本料金列の位置を取得
         base_price_idx = next((i for i, c in enumerate(cols) if '基本料金' in str(c)), -1)
         
-        # ボールルームでワイヤレス＋ピンマイクの合計が5本以上かの判定
+        # ボールルームでのワイヤレス（ハンド＋ピン）合計本数の判定
         total_wireless_req = req_wireless + req_pin
-        is_ballroom_5mics = is_ballroom and (total_wireless_req >= 5)
         
         if base_price_idx != -1:
             # 1. 基本料金
@@ -261,10 +260,13 @@ try:
                     
                     unit_price = subtotal // qty if qty > 0 else subtotal
                     
-                    # 備考メッセージの生成（ボールルーム＆5本以上の場合に注記）
+                    # 備考メッセージの生成（ボールルーム限定処理）
                     note = "-"
-                    if is_ballroom_5mics and ('ワイヤレス' in clean_name or 'ピン' in clean_name or '仮設' in clean_name):
-                        note = "※ワイヤレス（ハンド・ピン）5本以上使用のため追加ではなく仮設運用"
+                    if is_ballroom and ('ワイヤレス' in clean_name or 'ピン' in clean_name or '仮設' in clean_name or '追加' in clean_name):
+                        if total_wireless_req <= 4:
+                            note = "ワイヤレス使用4本以下の為"
+                        else:
+                            note = "※ワイヤレス（ハンド・ピン）5本以上使用のため追加ではなく仮設運用"
                     
                     # オペレーターの場合は参考価格として表示
                     if 'オペレーター' in clean_name:
