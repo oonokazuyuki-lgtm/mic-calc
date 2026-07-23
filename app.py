@@ -42,6 +42,13 @@ def save_history(record):
         df_hist = pd.concat([df_hist, new_df], ignore_index=True)
     df_hist.to_csv(HISTORY_FILE, index=False, encoding="utf-8-sig")
 
+# 特定の履歴を削除する関数（保存日時で一致判定）
+def delete_history_by_timestamp(timestamp):
+    df_hist = load_history()
+    if not df_hist.empty and "保存日時" in df_hist.columns:
+        df_hist = df_hist[df_hist["保存日時"] != timestamp]
+        df_hist.to_csv(HISTORY_FILE, index=False, encoding="utf-8-sig")
+
 # 全角・半角・大文字・小文字を揃えて正規化する関数
 def normalize_text(text):
     if not isinstance(text, str):
@@ -78,7 +85,7 @@ try:
     data = load_data()
     venues = list(data.keys())
 
-    # --- 📜 過去ログ読み込み＆全角半角あいまい検索エリア ---
+    # --- 📜 過去ログ読み込み＆全角半角あいまい検索・削除エリア ---
     st.markdown("### 📜 過去の見積履歴")
     df_history = load_history()
 
@@ -111,8 +118,8 @@ try:
             filtered_df = filtered_df[mask]
             label_prefix = f"（検索結果: {len(filtered_df)}件）"
         else:
-            # 未検索時は「直近100件」のみに絞り込む（最新順）
-            filtered_df = filtered_df.tail(100)
+            # 未検索時は「直近20件」のみに絞り込む（最新順）
+            filtered_df = filtered_df.tail(20)
             label_prefix = f"（直近{len(filtered_df)}件を表示中）"
 
         with col_s2:
@@ -127,8 +134,19 @@ try:
                 if selected_hist != "（選択してください）":
                     selected_idx = history_options.index(selected_hist) - 1
                     target_row = filtered_df.iloc[::-1].iloc[selected_idx]
-                    st.session_state["loaded_data"] = target_row.to_dict()
-                    st.success(f"「{target_row['宴席名']}」の見積データを呼び出しました。下のフォームに反映されています。")
+                    
+                    col_btn1, col_btn2 = st.columns([2, 1])
+                    with col_btn1:
+                        if st.button("📋 このデータをフォームに呼び出す", use_container_width=True):
+                            st.session_state["loaded_data"] = target_row.to_dict()
+                            st.success(f"「{target_row['宴席名']}」の見積データを呼び出しました。下のフォームに反映されています。")
+                    with col_btn2:
+                        # 🗑️ 削除ボタン
+                        if st.button("🗑️ 選択中の履歴を削除", type="secondary", use_container_width=True):
+                            delete_history_by_timestamp(target_row["保存日時"])
+                            st.session_state["loaded_data"] = None
+                            st.toast("🗑️ 履歴を1件削除しました！", icon="🧹")
+                            st.rerun()
             else:
                 st.warning("⚠️ 該当する見積履歴が見つかりませんでした。文字や数字を変えてお試しください。")
     else:
