@@ -1,11 +1,12 @@
 import streamlit as st
 import pandas as pd
 import math
+import datetime
 
 st.set_page_config(page_title="マイク料金見積シミュレータ", page_icon="🎤", layout="wide")
 
 st.title("🎤 マイク料金見積シミュレータ")
-st.write("会場・利用時間・ご希望のマイク本数を入力すると、最適なプランの概算料金と内訳を算出します。")
+st.write("会場・宴席情報・利用時間・ご希望のマイク本数を入力すると、最適なプランの概算料金と内訳を算出します。")
 
 # データ読み込み
 @st.cache_data
@@ -27,6 +28,16 @@ def safe_int(val):
 
 try:
     data = load_data()
+    
+    # 0. 宴席情報・基本情報の入力（上部）
+    st.subheader("📝 宴席情報・基本情報")
+    col_info1, col_info2 = st.columns(2)
+    with col_info1:
+        banquet_name = st.text_input("宴席名（手入力）", value="", placeholder="例：〇〇株式会社 様 ご利用")
+    with col_info2:
+        event_date = st.date_input("利用日付", value=datetime.date.today())
+        
+    st.markdown("---")
     
     # 1. 会場選択
     venues = list(data.keys())
@@ -257,6 +268,16 @@ try:
                         
         if detail_table:
             st.table(pd.DataFrame(detail_table))
+            
+        # 4. 見積結果下部に宴席情報を表示
+        display_banquet_name = banquet_name if banquet_name.strip() else "（未入力）"
+        formatted_date = event_date.strftime("%Y年%m月%d日")
+        
+        st.info(f"📌 **宴席・基本情報サマリー**\n\n"
+                f"- **宴席名:** {display_banquet_name}\n"
+                f"- **利用日付:** {formatted_date}\n"
+                f"- **会場名:** {selected_venue}\n"
+                f"- **ご利用時間:** {start_time_str} 〜 {end_time_str} （{use_hours:.1f}時間）")
             
     else:
         st.error("指定されたマイク本数の組み合わせに該当するプランが見つかりませんでした。本数を調整してください。")
