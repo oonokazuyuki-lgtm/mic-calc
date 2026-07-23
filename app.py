@@ -269,7 +269,7 @@ try:
         if detail_table:
             st.table(pd.DataFrame(detail_table))
             
-        # 4. 見積結果下部に宴席情報を表示
+        # 📌 内訳結果の真下に宴席情報サマリーを表示
         display_banquet_name = banquet_name if banquet_name.strip() else "（未入力）"
         formatted_date = event_date.strftime("%Y年%m月%d日")
         
@@ -278,7 +278,58 @@ try:
                 f"- **利用日付:** {formatted_date}\n"
                 f"- **会場名:** {selected_venue}\n"
                 f"- **ご利用時間:** {start_time_str} 〜 {end_time_str} （{use_hours:.1f}時間）")
+
+        st.markdown("---")
+
+        # 📄 PDF印刷機能（ポップアップ印刷ウィンドウ出力）
+        with st.expander("🖨️ PDF保存・印刷用のページを表示（保存ボタン）", expanded=False):
+            st.caption("※下の「ブラウザの印刷機能を開く」ボタンを押すと、内訳とサマリーのみのレイアウトでPDF保存・印刷が可能です。")
             
+            # HTMLテーブル変換
+            df_detail = pd.DataFrame(detail_table)
+            table_html = df_detail.to_html(index=False, classes='print-table')
+
+            print_html = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+                <meta charset="utf-8">
+                <style>
+                    body {{ font-family: sans-serif; padding: 20px; color: #333; }}
+                    h2 {{ border-bottom: 2px solid #333; padding-bottom: 5px; }}
+                    .summary {{ background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
+                    .summary p {{ margin: 5px 0; font-size: 14px; }}
+                    .price-box {{ font-size: 20px; font-weight: bold; color: #1a5276; margin: 15px 0; }}
+                    table.print-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
+                    table.print-table th, table.print-table td {{ border: 1px solid #ccc; padding: 8px 12px; text-align: left; font-size: 13px; }}
+                    table.print-table th {{ background-color: #f2f2f2; }}
+                    @media print {{
+                        .no-print {{ display: none; }}
+                    }}
+                </style>
+            </head>
+            <body>
+                <h2>🎤 音響マイク機材 見積・内訳明細書</h2>
+                <div class="summary">
+                    <p><strong>宴席名:</strong> {display_banquet_name}</p>
+                    <p><strong>利用日付:</strong> {formatted_date}</p>
+                    <p><strong>会場名:</strong> {selected_venue}</p>
+                    <p><strong>ご利用時間:</strong> {start_time_str} 〜 {end_time_str} （{use_hours:.1f}時間）</p>
+                </div>
+                <div class="price-box">
+                    概算合計金額: {calc_total_price:,} 円 {"(※オペレーター料金除く)" if op_price > 0 else ""}
+                </div>
+                <h3>📋 料金内訳明細</h3>
+                {table_html}
+                <br><br>
+                <button class="no-print" onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px;">
+                    🖨️ PDF保存 / 印刷ウィンドウを開く (Ctrl+P)
+                </button>
+            </body>
+            </html>
+            """
+            st.components.v1.html(print_html, height=500, scrolling=True)
+
     else:
         st.error("指定されたマイク本数の組み合わせに該当するプランが見つかりませんでした。本数を調整してください。")
         
