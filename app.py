@@ -428,7 +428,7 @@ try:
 
         # 📄 印刷・PDF保存プレビューエリア
         with st.expander("🖨️ 印刷 / PDF保存用のプレビューを表示", expanded=False):
-            st.caption("※用途に合わせて下の「印刷」または「PDF保存」のボタンを押してください。")
+            st.caption("※用途に合わせて下の「印刷画面を開く」または「PDFファイルを直接保存」ボタンを押してください。")
             df_detail = pd.DataFrame(detail_table)
             table_html = df_detail.to_html(index=False, classes='print-table')
 
@@ -437,9 +437,12 @@ try:
             <html>
             <head>
                 <meta charset="utf-8">
+                <!-- html2pdf.js ライブラリの読み込み -->
+                <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
                 <style>
                     body {{ font-family: sans-serif; padding: 20px; color: #333; }}
-                    h2 {{ border-bottom: 2px solid #333; padding-bottom: 5px; }}
+                    #pdf-area {{ padding: 10px; background: #fff; }}
+                    h2 {{ border-bottom: 2px solid #333; padding-bottom: 5px; margin-top: 0; }}
                     .summary {{ background: #f8f9fa; border: 1px solid #ddd; padding: 15px; border-radius: 5px; margin-bottom: 20px; }}
                     .summary p {{ margin: 5px 0; font-size: 14px; }}
                     .price-box {{ font-size: 20px; font-weight: bold; color: #1a5276; margin: 15px 0; }}
@@ -456,38 +459,55 @@ try:
                 </style>
             </head>
             <body>
-                <h2>🎤 音響マイク機材 見積・内訳明細書</h2>
-                <div class="summary">
-                    <p><strong>宴席名:</strong> {display_banquet_name}</p>
-                    <p><strong>担当者名:</strong> {display_staff_name}</p>
-                    <p><strong>利用日付:</strong> {formatted_date}</p>
-                    <p><strong>会場名:</strong> {selected_venue}</p>
-                    <p><strong>ご利用時間:</strong> {start_time_str} 〜 {end_time_str} （{use_hours:.1f}時間）</p>
+                <!-- PDF出力対象エリア -->
+                <div id="pdf-area">
+                    <h2>🎤 音響マイク機材 見積・内訳明細書</h2>
+                    <div class="summary">
+                        <p><strong>宴席名:</strong> {display_banquet_name}</p>
+                        <p><strong>担当者名:</strong> {display_staff_name}</p>
+                        <p><strong>利用日付:</strong> {formatted_date}</p>
+                        <p><strong>会場名:</strong> {selected_venue}</p>
+                        <p><strong>ご利用時間:</strong> {start_time_str} 〜 {end_time_str} （{use_hours:.1f}時間）</p>
+                    </div>
+                    <div class="price-box">
+                        概算合計金額: {calc_total_price:,} 円 {"(※オペレーター料金除く)" if op_price > 0 else ""}
+                    </div>
+                    <h3>📋 料金内訳明細</h3>
+                    {table_html}
                 </div>
-                <div class="price-box">
-                    概算合計金額: {calc_total_price:,} 円 {"(※オペレーター料金除く)" if op_price > 0 else ""}
-                </div>
-                <h3>📋 料金内訳明細</h3>
-                {table_html}
                 
                 <div class="action-container no-print">
                     <div>
                         <button class="btn-print" onclick="window.print()">
                             🖨️ 印刷画面を開く
                         </button>
-                        <div class="btn-note">※プリンターへ直接印刷する場合</div>
+                        <div class="btn-note">※紙に印刷したい場合</div>
                     </div>
                     <div>
-                        <button class="btn-pdf" onclick="window.print()">
-                            💾 PDF保存画面を開く
+                        <button class="btn-pdf" onclick="downloadPDF()">
+                            💾 PDFファイルを直接保存
                         </button>
-                        <div class="btn-note">※送信先で「PDFに保存」を選択してください</div>
+                        <div class="btn-note">※ファイルとしてダウンロード保存する場合</div>
                     </div>
                 </div>
+
+                <script>
+                    function downloadPDF() {{
+                        const element = document.getElementById('pdf-area');
+                        const opt = {{
+                            margin:       10,
+                            filename:     '見積書_{display_banquet_name}.pdf',
+                            image:        {{ type: 'jpeg', quality: 0.98 }},
+                            html2canvas:  {{ scale: 2 }},
+                            jsPDF:        {{ unit: 'mm', format: 'a4', orientation: 'portrait' }}
+                        }};
+                        html2pdf().set(opt).from(element).save();
+                    }}
+                </script>
             </body>
             </html>
             """
-            st.components.v1.html(print_html, height=520, scrolling=True)
+            st.components.v1.html(print_html, height=550, scrolling=True)
 
     else:
         st.error("指定されたマイク本数の組み合わせに該当するプランが見つかりませんでした。本数を調整してください。")
