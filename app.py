@@ -94,7 +94,7 @@ try:
         st.session_state["loaded_data"] = None
 
     if not df_history.empty:
-        # 注意書きの追加（指定テキストへ更新）
+        # 注意書きの表示
         st.caption("💡 **【検索のご案内】** 表示数は初期状態で直近件数に制限されていますが、検索バーに文字・数字を入力していただくことで、100件目以降の過去データも含めてすべての履歴から検索・呼び出しが可能です。")
         
         col_s1, col_s2 = st.columns([1, 2])
@@ -426,9 +426,9 @@ try:
 
         st.markdown("---")
 
-        # 📄 PDF印刷機能
-        with st.expander("🖨️ PDF保存・印刷用のページを表示（保存ボタン）", expanded=False):
-            st.caption("※下の「ブラウザの印刷機能を開く」ボタンを押すと、内訳とサマリーのみのレイアウトでPDF保存・印刷が可能です。")
+        # 📄 印刷・PDF保存プレビューエリア
+        with st.expander("🖨️ 印刷 / PDF保存用のプレビューを表示", expanded=False):
+            st.caption("※用途に合わせて下の「印刷」または「PDF保存」のボタンを押してください。")
             df_detail = pd.DataFrame(detail_table)
             table_html = df_detail.to_html(index=False, classes='print-table')
 
@@ -446,8 +446,12 @@ try:
                     table.print-table {{ width: 100%; border-collapse: collapse; margin-top: 10px; }}
                     table.print-table th, table.print-table td {{ border: 1px solid #ccc; padding: 8px 12px; text-align: left; font-size: 13px; white-space: nowrap; }}
                     table.print-table th {{ background-color: #f2f2f2; }}
+                    .action-container {{ margin-top: 25px; display: flex; gap: 15px; align-items: flex-start; }}
+                    .btn-print {{ padding: 10px 20px; font-size: 14px; font-weight: bold; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px; }}
+                    .btn-pdf {{ padding: 10px 20px; font-size: 14px; font-weight: bold; cursor: pointer; background: #28a745; color: white; border: none; border-radius: 5px; }}
+                    .btn-note {{ font-size: 12px; color: #666; margin-top: 5px; }}
                     @media print {{
-                        .no-print {{ display: none; }}
+                        .no-print {{ display: none !important; }}
                     }}
                 </style>
             </head>
@@ -465,14 +469,25 @@ try:
                 </div>
                 <h3>📋 料金内訳明細</h3>
                 {table_html}
-                <br><br>
-                <button class="no-print" onclick="window.print()" style="padding: 10px 20px; font-size: 16px; cursor: pointer; background: #007bff; color: white; border: none; border-radius: 5px;">
-                    🖨️ PDF保存 / 印刷ウィンドウを開く (Ctrl+P)
-                </button>
+                
+                <div class="action-container no-print">
+                    <div>
+                        <button class="btn-print" onclick="window.print()">
+                            🖨️ 印刷画面を開く
+                        </button>
+                        <div class="btn-note">※プリンターへ直接印刷する場合</div>
+                    </div>
+                    <div>
+                        <button class="btn-pdf" onclick="window.print()">
+                            💾 PDF保存画面を開く
+                        </button>
+                        <div class="btn-note">※送信先で「PDFに保存」を選択してください</div>
+                    </div>
+                </div>
             </body>
             </html>
             """
-            st.components.v1.html(print_html, height=500, scrolling=True)
+            st.components.v1.html(print_html, height=520, scrolling=True)
 
     else:
         st.error("指定されたマイク本数の組み合わせに該当するプランが見つかりませんでした。本数を調整してください。")
