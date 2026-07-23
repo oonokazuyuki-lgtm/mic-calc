@@ -199,9 +199,6 @@ try:
         # 基本料金列の位置を取得
         base_price_idx = next((i for i, c in enumerate(cols) if '基本料金' in str(c)), -1)
         
-        # ワイヤレス（ハンド＋ピン）の合計本数を取得
-        total_wireless_req = req_wireless + req_pin
-        
         if base_price_idx != -1:
             # 1. 基本料金
             base_price = safe_int(row[cols[base_price_idx]])
@@ -260,12 +257,12 @@ try:
                     
                     unit_price = subtotal // qty if qty > 0 else subtotal
                     
-                    # 備考メッセージの生成（全体のワイヤレス合計本数に応じて判定）
+                    # 備考メッセージの判定（項目名単位で明確に判定）
                     note = "-"
-                    if is_ballroom and ('ワイヤレス' in clean_name or 'ピン' in clean_name):
-                        if total_wireless_req <= 4:
+                    if is_ballroom:
+                        if '追加' in clean_name:
                             note = "ワイヤレス使用4本以下の為"
-                        else:
+                        elif '仮設' in clean_name:
                             note = "※ワイヤレス（ハンド・ピン）5本以上使用のため追加ではなく仮設運用"
                     
                     # オペレーターの場合は参考価格として表示
