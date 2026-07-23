@@ -8,16 +8,25 @@ st.set_page_config(page_title="マイク料金見積シミュレータ", page_ic
 st.title("🎤 マイク料金見積シミュレータ")
 st.write("会場・宴席情報・利用時間・ご希望のマイク本数を入力すると、最適なプランの概算料金と内訳を算出します。")
 
-# データ読み込み
+# データ読み込みおよび会場名の置換マップ定義
+NAME_MAPPING = {
+    "ボールルーム": "シャングリ・ラボールルーム",
+    "コンウェイ1・2・3": "コンウェイルーム（各Ⅰ・Ⅱ・Ⅲ）",
+    "コンウェイルーム": "コンウェイルーム（Ⅱ＆Ⅲ）",
+    "パビリオン": "ザ・パビリオン"
+}
+
 @st.cache_data
 def load_data():
     excel_file = 'マイク料金表.xlsx'
     xls = pd.ExcelFile(excel_file)
     data_dict = {}
     for sheet in xls.sheet_names:
+        # 表示名をマッピングルールに従って変更
+        display_name = NAME_MAPPING.get(sheet, sheet)
         df = pd.read_excel(excel_file, sheet_name=sheet)
         df = df.fillna(0)
-        data_dict[sheet] = df
+        data_dict[display_name] = df
     return data_dict
 
 def safe_int(val):
@@ -148,7 +157,7 @@ try:
         op_col = next((c for c in df.columns if 'オペレーター' in str(c)), None)
         op_price = safe_int(row[op_col]) if op_col else 0
         
-        # 基本料金の延長単価判定（ボールルーム: 15,000円 / その他: 3,000円）
+        # 基本料金の延長単価判定（シャングリ・ラボールルーム: 15,000円 / その他: 3,000円）
         is_ballroom = ("ボールルーム" in selected_venue)
         base_ext_unit_price = 15000 if is_ballroom else 3000
         base_ext_price = extension_hours * base_ext_unit_price
