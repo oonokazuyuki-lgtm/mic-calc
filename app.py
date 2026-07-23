@@ -172,6 +172,16 @@ try:
             else:
                 st.warning("⚠️ この構成は追加機器の調整が必要です（連絡要）。")
             
+        # 📌 見積結果（金額）の直下に「宴席・基本情報」を表示
+        display_banquet_name = banquet_name if banquet_name.strip() else "（未入力）"
+        formatted_date = event_date.strftime("%Y年%m月%d日")
+        
+        st.info(f"📌 **宴席・基本情報**\n\n"
+                f"- **宴席名:** {display_banquet_name}\n"
+                f"- **利用日付:** {formatted_date}\n"
+                f"- **会場名:** {selected_venue}\n"
+                f"- **ご利用時間:** {start_time_str} 〜 {end_time_str} （{use_hours:.1f}時間）")
+
         st.write("#### 📋 料金内訳明細")
         
         detail_table = []
@@ -268,16 +278,6 @@ try:
                         
         if detail_table:
             st.table(pd.DataFrame(detail_table))
-            
-        # 📌 内訳結果の真下に宴席情報サマリーを表示
-        display_banquet_name = banquet_name if banquet_name.strip() else "（未入力）"
-        formatted_date = event_date.strftime("%Y年%m月%d日")
-        
-        st.info(f"📌 **宴席・基本情報サマリー**\n\n"
-                f"- **宴席名:** {display_banquet_name}\n"
-                f"- **利用日付:** {formatted_date}\n"
-                f"- **会場名:** {selected_venue}\n"
-                f"- **ご利用時間:** {start_time_str} 〜 {end_time_str} （{use_hours:.1f}時間）")
 
         st.markdown("---")
 
